@@ -23,6 +23,7 @@
   display: flex;
   flex-direction: column;
   position: relative;
+  background-color: var(--pf-v5-global--BackgroundColor--100, #ffffff);
 }
 
 .dmn-diff-viewer__panels {
@@ -39,7 +40,8 @@
   flex-direction: column;
   border: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
   position: relative;
-  background-color: var(--pf-v5-global--BackgroundColor--100, #fff);
+  background-color: var(--pf-v5-global--BackgroundColor--100, #ffffff);
+  overflow: hidden;
 }
 
 .dmn-diff-viewer__panel:not(:last-child) {
@@ -53,15 +55,17 @@
   align-items: center;
   background-color: var(--pf-v5-global--BackgroundColor--200, #f0f0f0);
   border-bottom: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
   color: var(--pf-v5-global--Color--100, #151515);
+  flex-shrink: 0;
 }
 
 .dmn-diff-viewer__diagram-container {
   flex: 1;
   position: relative;
   overflow: hidden;
+  min-height: 0;
 }
 
 .dmn-diff-viewer__panel--empty {
@@ -72,7 +76,7 @@
 .dmn-diff-viewer__empty-state {
   text-align: center;
   color: var(--pf-v5-global--Color--200, #6a6e73);
-  font-size: 14px;
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
 }
 
 /* Ensure React Flow styles are properly applied within our containers */

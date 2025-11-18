@@ -36,12 +36,15 @@ import { dmnEditorDictionaries, DmnEditorI18nContext, dmnEditorI18nDefaults } fr
 import { CommandsContextProvider } from "../../commands/CommandsContextProvider";
 
 interface DiagramViewerProps {
-  label: string;
-  model: Normalized<DmnLatestModel>;
+  readonly label: string;
+  readonly model: Normalized<DmnLatestModel>;
 }
 
+/**
+ * Renders a single DMN diagram with all required context providers.
+ * This component encapsulates the setup needed for the Diagram component to function correctly.
+ */
 const DiagramViewer: React.FC<DiagramViewerProps> = ({ label, model }) => {
-  // Create a store for this diagram viewer
   const store = useMemo(
     () => createDmnEditorStore(model, new ComputedStateCache<Computed>(INITIAL_COMPUTED_CACHE)),
     [model]
@@ -97,46 +100,37 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({ label, model }) => {
   );
 };
 
+/**
+ * Renders an empty panel placeholder when no diagram is loaded.
+ */
+const EmptyPanel: React.FC<{ readonly label: string }> = ({ label }) => (
+  <div className="dmn-diff-viewer__panel dmn-diff-viewer__panel--empty">
+    <div className="dmn-diff-viewer__panel-header">{label}</div>
+    <div className="dmn-diff-viewer__empty-state">No diagram loaded</div>
+  </div>
+);
+
+/**
+ * Main component for displaying two DMN diagrams side-by-side for comparison.
+ * Each panel shows either a diagram (if loaded) or an empty state placeholder.
+ *
+ * This component implements Story #3: View the DMN files side by side.
+ */
 export const DmnDiffViewer: React.FC = () => {
   const { versionA, versionB } = useDmnDiffStore();
 
-  // If no models are loaded, show empty state
-  if (!versionA?.model && !versionB?.model) {
-    return (
-      <div className="dmn-diff-viewer">
-        <div className="dmn-diff-viewer__panels">
-          <div className="dmn-diff-viewer__panel dmn-diff-viewer__panel--empty">
-            <div className="dmn-diff-viewer__panel-header">Version A</div>
-            <div className="dmn-diff-viewer__empty-state">No diagram loaded</div>
-          </div>
-          <div className="dmn-diff-viewer__panel dmn-diff-viewer__panel--empty">
-            <div className="dmn-diff-viewer__panel-header">Version B</div>
-            <div className="dmn-diff-viewer__empty-state">No diagram loaded</div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show loaded diagrams (can show one or both)
   return (
     <div className="dmn-diff-viewer">
       <div className="dmn-diff-viewer__panels">
         {versionA?.model ? (
           <DiagramViewer label="Version A" model={versionA.model} />
         ) : (
-          <div className="dmn-diff-viewer__panel dmn-diff-viewer__panel--empty">
-            <div className="dmn-diff-viewer__panel-header">Version A</div>
-            <div className="dmn-diff-viewer__empty-state">No diagram loaded</div>
-          </div>
+          <EmptyPanel label="Version A" />
         )}
         {versionB?.model ? (
           <DiagramViewer label="Version B" model={versionB.model} />
         ) : (
-          <div className="dmn-diff-viewer__panel dmn-diff-viewer__panel--empty">
-            <div className="dmn-diff-viewer__panel-header">Version B</div>
-            <div className="dmn-diff-viewer__empty-state">No diagram loaded</div>
-          </div>
+          <EmptyPanel label="Version B" />
         )}
       </div>
     </div>

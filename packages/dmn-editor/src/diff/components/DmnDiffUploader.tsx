@@ -32,12 +32,12 @@ import { DmnDiffFileVersion } from "../types";
 import { ALLOWED_FILE_EXTENSION } from "../constants";
 import "./DmnDiffUploader.css";
 
-interface FileUploadAreaProps {
-  version: DmnDiffFileVersion;
-  label: string;
+export interface FileUploadAreaProps {
+  readonly version: DmnDiffFileVersion;
+  readonly label: string;
 }
 
-const FileUploadArea: React.FC<FileUploadAreaProps> = ({ version, label }) => {
+export const FileUploadArea: React.FC<FileUploadAreaProps> = ({ version, label }) => {
   const { setFile, clearFile, versionA, versionB, versionAError, versionBError, isLoadingA, isLoadingB } =
     useDmnDiffStore();
 
