@@ -24,25 +24,13 @@ import { FileUploadArea } from "../../../src/diff/components/DmnDiffUploader";
 import { DmnDiffViewer } from "../../../src/diff/components/DmnDiffViewer";
 import { DmnDiffFileVersion } from "../../../src/diff/types";
 
-/**
- * Story #3: View the DMN files side by side
- *
- * This story demonstrates the side-by-side DMN diff viewer with:
- * - Two panels: left=Version A, right=Version B
- * - Each panel renders full DMN diagram using React Flow
- * - Diagrams scrollable and zoomable but not independently
- * - Diagrams visible behind the upload components
- * - Upload boxes positioned in left and right corners with transparency
- */
 const DmnDiffStory: React.FC = () => {
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative" }}>
-      {/* Diagrams rendered behind the uploader */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
         <DmnDiffViewer />
       </div>
 
-      {/* Version A upload box - left corner */}
       <div
         style={{
           position: "absolute",
@@ -68,7 +56,6 @@ const DmnDiffStory: React.FC = () => {
         </div>
       </div>
 
-      {/* Version B upload box - right corner */}
       <div
         style={{
           position: "absolute",
@@ -109,6 +96,6 @@ export default meta;
 type Story = StoryObj;
 
 export const Story3SideBySideView: Story = {
-  name: "Story #3: Side by Side View",
+  name: "Side by Side View",
   render: () => <DmnDiffStory />,
 };
