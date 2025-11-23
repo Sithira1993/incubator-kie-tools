@@ -35,6 +35,7 @@ import { I18nDictionariesProvider } from "@kie-tools-core/i18n/dist/react-compon
 import { dmnEditorDictionaries, DmnEditorI18nContext, dmnEditorI18nDefaults } from "../../i18n";
 import { CommandsContextProvider } from "../../commands/CommandsContextProvider";
 import { Viewport } from "reactflow";
+import { DmnDiffChangeList } from "./DmnDiffChangeList";
 
 interface DiagramViewerProps {
   readonly label: string;
@@ -172,13 +173,109 @@ const EmptyPanel: React.FC<{ readonly label: string }> = ({ label }) => (
 );
 
 export const DmnDiffViewer: React.FC = () => {
-  const { versionA, versionB } = useDmnDiffStore();
+  const { versionA, versionB, diffResult, isChangeListOpen, toggleChangeList } = useDmnDiffStore();
   const [sharedViewport, setSharedViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const diagramARef = useRef<DiagramRef>(null);
   const diagramBRef = useRef<DiagramRef>(null);
 
   const handleViewportChange = useCallback((viewport: Viewport) => {
     setSharedViewport(viewport);
+  }, []);
+
+  /**
+   * Focus on an element in both diagrams by its ID
+   * The elementId is in the format returned by buildXmlHref: "namespace#id"
+   */
+  const handleItemClick = useCallback((elementId: string) => {
+    const focusOnElement = (diagramRef: React.RefObject<DiagramRef>) => {
+      const rfInstance = diagramRef.current?.getReactFlowInstance();
+      if (!rfInstance) {
+        return;
+      }
+
+      // Try to find the node by ID (exact match)
+      const nodes = rfInstance.getNodes();
+      const node = nodes.find((n) => n.id === elementId);
+
+      if (node) {
+        // Focus on the node using fitBounds
+        const nodeBounds = {
+          x: node.position.x,
+          y: node.position.y,
+          width: node.width ?? 200,
+          height: node.height ?? 100,
+        };
+
+        rfInstance.fitBounds(nodeBounds, {
+          padding: 100,
+          duration: 300,
+        });
+        return;
+      }
+
+      // If not found as a node, try to find connected edges
+      const edges = rfInstance.getEdges();
+      const edge = edges.find((e) => e.id === elementId);
+
+      if (edge) {
+        // For edges, focus on both source and target nodes if available
+        const sourceNode = nodes.find((n) => n.id === edge.source);
+        const targetNode = nodes.find((n) => n.id === edge.target);
+
+        if (sourceNode && targetNode) {
+          // Focus on the bounding box containing both nodes
+          const minX = Math.min(sourceNode.position.x, targetNode.position.x);
+          const minY = Math.min(sourceNode.position.y, targetNode.position.y);
+          const maxX = Math.max(
+            sourceNode.position.x + (sourceNode.width ?? 200),
+            targetNode.position.x + (targetNode.width ?? 200)
+          );
+          const maxY = Math.max(
+            sourceNode.position.y + (sourceNode.height ?? 100),
+            targetNode.position.y + (targetNode.height ?? 100)
+          );
+
+          rfInstance.fitBounds(
+            {
+              x: minX,
+              y: minY,
+              width: maxX - minX,
+              height: maxY - minY,
+            },
+            {
+              padding: 100,
+              duration: 300,
+            }
+          );
+        } else if (sourceNode) {
+          const nodeBounds = {
+            x: sourceNode.position.x,
+            y: sourceNode.position.y,
+            width: sourceNode.width ?? 200,
+            height: sourceNode.height ?? 100,
+          };
+          rfInstance.fitBounds(nodeBounds, {
+            padding: 100,
+            duration: 300,
+          });
+        } else if (targetNode) {
+          const nodeBounds = {
+            x: targetNode.position.x,
+            y: targetNode.position.y,
+            width: targetNode.width ?? 200,
+            height: targetNode.height ?? 100,
+          };
+          rfInstance.fitBounds(nodeBounds, {
+            padding: 100,
+            duration: 300,
+          });
+        }
+      }
+    };
+
+    // Focus on both diagrams
+    focusOnElement(diagramARef);
+    focusOnElement(diagramBRef);
   }, []);
 
   return (
@@ -207,6 +304,12 @@ export const DmnDiffViewer: React.FC = () => {
           <EmptyPanel label="Version B" />
         )}
       </div>
+      <DmnDiffChangeList
+        diffResult={diffResult}
+        isOpen={isChangeListOpen}
+        onToggle={toggleChangeList}
+        onItemClick={handleItemClick}
+      />
     </div>
   );
 };
