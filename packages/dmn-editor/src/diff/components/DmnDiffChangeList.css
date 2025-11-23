@@ -18,33 +18,52 @@
  */
 
 .dmn-diff-change-list {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 400px;
-  max-width: calc(100% - 32px);
-  max-height: calc(100% - 32px);
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 1200px;
+  max-height: 60vh;
   background-color: var(--pf-v5-global--BackgroundColor--100, #ffffff);
-  border: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
-  border-radius: var(--pf-v5-global--BorderRadius--sm, 3px);
-  box-shadow: var(--pf-v5-global--BoxShadow--lg, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+  border-top: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  border-left: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  border-right: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  border-radius: var(--pf-v5-global--BorderRadius--md, 6px) var(--pf-v5-global--BorderRadius--md, 6px) 0 0;
+  box-shadow: var(--pf-v5-global--BoxShadow--lg, 0 -0.5rem 1rem rgba(0, 0, 0, 0.15));
   display: flex;
   flex-direction: column;
   z-index: 1000;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateX(-50%) translateY(100%);
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .dmn-diff-change-list__toggle-button {
-  position: absolute;
-  top: 16px;
-  right: 16px;
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 1000;
   background-color: var(--pf-v5-global--BackgroundColor--100, #ffffff);
   border: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
   box-shadow: var(--pf-v5-global--BoxShadow--md, 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1));
+  padding: 12px 24px;
+  border-radius: var(--pf-v5-global--BorderRadius--md, 6px);
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
 }
 
 .dmn-diff-change-list__toggle-button:hover {
   background-color: var(--pf-v5-global--BackgroundColor--150, #f5f5f5);
+  color: var(--pf-v5-global--Color--100, #151515);
+  box-shadow: var(--pf-v5-global--BoxShadow--lg, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
 }
 
 .dmn-diff-change-list__header {
@@ -69,7 +88,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 200px;
-  max-height: calc(100vh - 200px);
+  max-height: calc(60vh - 120px);
 }
 
 .dmn-diff-change-list__empty {

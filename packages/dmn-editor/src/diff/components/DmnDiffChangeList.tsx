@@ -34,13 +34,9 @@ export interface DmnDiffChangeListProps {
   readonly onItemClick: (elementId: string) => void;
 }
 
-/**
- * Combines nodes and edges into a single sorted list for display
- */
 function combineDiffs(diffResult: DiffResult): ElementDiff[] {
   const allChanges: ElementDiff[] = [...diffResult.nodes, ...diffResult.edges];
   return allChanges.sort((a, b) => {
-    // Sort by change type: Removed first, then Modified, then Added
     const typeOrder: Record<string, number> = {
       REMOVED: 0,
       MODIFIED: 1,
@@ -50,17 +46,12 @@ function combineDiffs(diffResult: DiffResult): ElementDiff[] {
     if (typeDiff !== 0) {
       return typeDiff;
     }
-    // Then sort by element name or ID
     const nameA = a.elementName || a.id;
     const nameB = b.elementName || b.id;
     return nameA.localeCompare(nameB);
   });
 }
 
-/**
- * Simple virtualization: only render visible items
- * This is a basic implementation without external dependencies
- */
 function useVirtualizedList<T>(items: T[], containerRef: React.RefObject<HTMLDivElement>, itemHeight: number = 60) {
   const [visibleRange, setVisibleRange] = React.useState({ start: 0, end: Math.min(20, items.length) });
 
@@ -74,15 +65,14 @@ function useVirtualizedList<T>(items: T[], containerRef: React.RefObject<HTMLDiv
     const updateVisibleRange = () => {
       const scrollTop = container.scrollTop;
       const containerHeight = container.clientHeight;
-      const start = Math.max(0, Math.floor(scrollTop / itemHeight) - 2); // Render 2 items before
-      const end = Math.min(items.length, start + Math.ceil(containerHeight / itemHeight) + 4); // Render 4 items after
+      const start = Math.max(0, Math.floor(scrollTop / itemHeight) - 2);
+      const end = Math.min(items.length, start + Math.ceil(containerHeight / itemHeight) + 4);
 
       setVisibleRange({ start, end });
     };
 
     updateVisibleRange();
     container.addEventListener("scroll", updateVisibleRange);
-    // Also update on resize
     const resizeObserver = new ResizeObserver(updateVisibleRange);
     resizeObserver.observe(container);
 
@@ -119,7 +109,6 @@ export const DmnDiffChangeList: React.FC<DmnDiffChangeListProps> = ({ diffResult
     return allChanges.slice(visibleRange.start, visibleRange.end);
   }, [allChanges, visibleRange]);
 
-  // Calculate total height for scrollbar (itemHeight is 60px including border)
   const itemHeight = 60;
   const totalHeight = allChanges.length * itemHeight;
   const offsetY = visibleRange.start * itemHeight;
@@ -127,12 +116,15 @@ export const DmnDiffChangeList: React.FC<DmnDiffChangeListProps> = ({ diffResult
   if (!isOpen) {
     return (
       <Button
-        variant="plain"
+        variant="primary"
         onClick={onToggle}
         className="dmn-diff-change-list__toggle-button"
         aria-label="Open change list"
         icon={<ListIcon />}
-      />
+      >
+        List of Changes
+        {allChanges.length > 0 && ` (${allChanges.length})`}
+      </Button>
     );
   }
 
@@ -149,7 +141,6 @@ export const DmnDiffChangeList: React.FC<DmnDiffChangeListProps> = ({ diffResult
           <div className="dmn-diff-change-list__empty">No changes detected</div>
         ) : (
           <>
-            {/* Spacer for items before visible range */}
             <div style={{ height: offsetY }} />
             <div ref={listRef}>
               {visibleItems.map((change, index) => {
@@ -164,7 +155,6 @@ export const DmnDiffChangeList: React.FC<DmnDiffChangeListProps> = ({ diffResult
                 );
               })}
             </div>
-            {/* Spacer for items after visible range */}
             <div style={{ height: Math.max(0, totalHeight - offsetY - visibleItems.length * itemHeight) }} />
           </>
         )}
