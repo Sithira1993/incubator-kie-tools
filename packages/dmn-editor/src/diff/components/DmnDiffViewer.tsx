@@ -36,6 +36,7 @@ import { dmnEditorDictionaries, DmnEditorI18nContext, dmnEditorI18nDefaults } fr
 import { CommandsContextProvider } from "../../commands/CommandsContextProvider";
 import { Viewport } from "reactflow";
 import { DmnDiffChangeList } from "./DmnDiffChangeList";
+import { parseXmlHref, buildXmlHref } from "@kie-tools/dmn-marshaller/dist/xml";
 
 interface DiagramViewerProps {
   readonly label: string;
@@ -182,101 +183,80 @@ export const DmnDiffViewer: React.FC = () => {
     setSharedViewport(viewport);
   }, []);
 
-  /**
-   * Focus on an element in both diagrams by its ID
-   * The elementId is in the format returned by buildXmlHref: "namespace#id"
-   */
-  const handleItemClick = useCallback((elementId: string) => {
-    const focusOnElement = (diagramRef: React.RefObject<DiagramRef>) => {
-      const rfInstance = diagramRef.current?.getReactFlowInstance();
-      if (!rfInstance) {
-        return;
-      }
-
-      // Try to find the node by ID (exact match)
-      const nodes = rfInstance.getNodes();
-      const node = nodes.find((n) => n.id === elementId);
-
-      if (node) {
-        // Focus on the node using fitBounds
-        const nodeBounds = {
-          x: node.position.x,
-          y: node.position.y,
-          width: node.width ?? 200,
-          height: node.height ?? 100,
-        };
-
-        rfInstance.fitBounds(nodeBounds, {
-          padding: 100,
-          duration: 300,
-        });
-        return;
-      }
-
-      // If not found as a node, try to find connected edges
-      const edges = rfInstance.getEdges();
-      const edge = edges.find((e) => e.id === elementId);
-
-      if (edge) {
-        // For edges, focus on both source and target nodes if available
-        const sourceNode = nodes.find((n) => n.id === edge.source);
-        const targetNode = nodes.find((n) => n.id === edge.target);
-
-        if (sourceNode && targetNode) {
-          // Focus on the bounding box containing both nodes
-          const minX = Math.min(sourceNode.position.x, targetNode.position.x);
-          const minY = Math.min(sourceNode.position.y, targetNode.position.y);
-          const maxX = Math.max(
-            sourceNode.position.x + (sourceNode.width ?? 200),
-            targetNode.position.x + (targetNode.width ?? 200)
-          );
-          const maxY = Math.max(
-            sourceNode.position.y + (sourceNode.height ?? 100),
-            targetNode.position.y + (targetNode.height ?? 100)
-          );
-
-          rfInstance.fitBounds(
-            {
-              x: minX,
-              y: minY,
-              width: maxX - minX,
-              height: maxY - minY,
-            },
-            {
-              padding: 100,
-              duration: 300,
-            }
-          );
-        } else if (sourceNode) {
-          const nodeBounds = {
-            x: sourceNode.position.x,
-            y: sourceNode.position.y,
-            width: sourceNode.width ?? 200,
-            height: sourceNode.height ?? 100,
-          };
-          rfInstance.fitBounds(nodeBounds, {
-            padding: 100,
-            duration: 300,
-          });
-        } else if (targetNode) {
-          const nodeBounds = {
-            x: targetNode.position.x,
-            y: targetNode.position.y,
-            width: targetNode.width ?? 200,
-            height: targetNode.height ?? 100,
-          };
-          rfInstance.fitBounds(nodeBounds, {
-            padding: 100,
-            duration: 300,
-          });
+  const handleItemClick = useCallback(
+    (elementId: string) => {
+      const focusOnElement = (diagramRef: React.RefObject<DiagramRef>, modelNamespace: string | undefined) => {
+        const rfInstance = diagramRef.current?.getReactFlowInstance();
+        if (!rfInstance) {
+          return;
         }
-      }
-    };
 
-    // Focus on both diagrams
-    focusOnElement(diagramARef);
-    focusOnElement(diagramBRef);
-  }, []);
+        const parsed = parseXmlHref(elementId);
+        if (!parsed.id) {
+          return;
+        }
+
+        const normalizedNodeId =
+          !parsed.namespace || parsed.namespace === modelNamespace
+            ? `#${parsed.id}`
+            : buildXmlHref({ namespace: parsed.namespace, id: parsed.id });
+
+        const normalizedEdgeId =
+          !parsed.namespace || parsed.namespace === modelNamespace
+            ? parsed.id
+            : buildXmlHref({ namespace: parsed.namespace, id: parsed.id });
+
+        const nodes = rfInstance.getNodes();
+        const edges = rfInstance.getEdges();
+
+        const node = nodes.find((n) => n.id === normalizedNodeId);
+
+        if (node) {
+          const centerX = node.position.x + (node.width ?? 200) / 2;
+          const centerY = node.position.y + (node.height ?? 100) / 2;
+
+          rfInstance.setCenter(centerX, centerY, { duration: 300 });
+          return;
+        }
+
+        const edge = edges.find((e) => e.id === normalizedEdgeId || e.id === normalizedNodeId);
+
+        if (edge) {
+          const sourceNode = nodes.find((n) => n.id === edge.source);
+          const targetNode = nodes.find((n) => n.id === edge.target);
+
+          if (sourceNode && targetNode) {
+            const sourceCenterX = sourceNode.position.x + (sourceNode.width ?? 200) / 2;
+            const sourceCenterY = sourceNode.position.y + (sourceNode.height ?? 100) / 2;
+            const targetCenterX = targetNode.position.x + (targetNode.width ?? 200) / 2;
+            const targetCenterY = targetNode.position.y + (targetNode.height ?? 100) / 2;
+
+            const centerX = (sourceCenterX + targetCenterX) / 2;
+            const centerY = (sourceCenterY + targetCenterY) / 2;
+
+            rfInstance.setCenter(centerX, centerY, { duration: 300 });
+          } else if (sourceNode) {
+            const centerX = sourceNode.position.x + (sourceNode.width ?? 200) / 2;
+            const centerY = sourceNode.position.y + (sourceNode.height ?? 100) / 2;
+
+            rfInstance.setCenter(centerX, centerY, { duration: 300 });
+          } else if (targetNode) {
+            const centerX = targetNode.position.x + (targetNode.width ?? 200) / 2;
+            const centerY = targetNode.position.y + (targetNode.height ?? 100) / 2;
+
+            rfInstance.setCenter(centerX, centerY, { duration: 300 });
+          }
+        }
+      };
+
+      const namespaceA = versionA?.model?.definitions?.["@_namespace"];
+      const namespaceB = versionB?.model?.definitions?.["@_namespace"];
+
+      focusOnElement(diagramARef, namespaceA);
+      focusOnElement(diagramBRef, namespaceB);
+    },
+    [versionA, versionB]
+  );
 
   return (
     <div className="dmn-diff-viewer">

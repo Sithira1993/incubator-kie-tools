@@ -143,10 +143,16 @@
   cursor: pointer;
   transition: background-color 0.15s ease;
   border-bottom: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  outline: none;
 }
 
 .dmn-diff-change-list__table-row:hover {
   background-color: var(--pf-v5-global--BackgroundColor--150, #f5f5f5);
+}
+
+.dmn-diff-change-list__table-row:focus {
+  outline: 2px solid var(--pf-v5-global--primary-color--100, #06c);
+  outline-offset: -2px;
 }
 
 .dmn-diff-change-list__table-cell {

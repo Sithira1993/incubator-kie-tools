@@ -200,7 +200,20 @@ export const DmnDiffChangeList: React.FC<DmnDiffChangeListProps> = ({ diffResult
                     <tr
                       key={change.id}
                       className="dmn-diff-change-list__table-row"
-                      onClick={() => handleRowClick(change.id)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleRowClick(change.id);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleRowClick(change.id);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
                       style={{ height: itemHeight }}
                     >
                       <td className="dmn-diff-change-list__table-cell dmn-diff-change-list__table-cell--index">
