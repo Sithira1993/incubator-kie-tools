@@ -137,7 +137,6 @@ export const FileUploadArea: React.FC<FileUploadAreaProps> = ({ version, label }
 
   return (
     <div className="dmn-diff-uploader__version">
-      <span className="dmn-diff-uploader__version-label">{label}</span>
       {/* When the upload area is interactive, the role and tabIndex are set to allow keyboard navigation */}
       <div
         className={getUploadAreaClassName()}
@@ -168,7 +167,7 @@ export const FileUploadArea: React.FC<FileUploadAreaProps> = ({ version, label }
           <>
             <UploadIcon className="dmn-diff-uploader__upload-icon" />
             <div className="dmn-diff-uploader__upload-text">
-              <strong>Click to upload</strong> or drag and drop
+              <strong>Click to upload {label}</strong> or drag and drop
             </div>
             <div className="dmn-diff-uploader__upload-hint">DMN files only (max 5MB)</div>
           </>
