@@ -98,6 +98,90 @@
   font-size: var(--pf-v5-global--FontSize--sm, 14px);
 }
 
+.dmn-diff-change-list__table-wrapper {
+  position: relative;
+}
+
+.dmn-diff-change-list__table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  position: relative;
+}
+
+.dmn-diff-change-list__table-header {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
+  color: var(--pf-v5-global--Color--100, #151515);
+  background-color: var(--pf-v5-global--BackgroundColor--200, #f0f0f0);
+  border-bottom: 2px solid var(--pf-v5-global--BorderColor--200, #b8bbbe);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.dmn-diff-change-list__table-header--index {
+  width: 60px;
+  text-align: center;
+}
+
+.dmn-diff-change-list__table-header--name {
+  width: auto;
+}
+
+.dmn-diff-change-list__table-header--type {
+  width: 200px;
+}
+
+.dmn-diff-change-list__table-header--change {
+  width: 120px;
+}
+
+.dmn-diff-change-list__table-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  border-bottom: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+}
+
+.dmn-diff-change-list__table-row:hover {
+  background-color: var(--pf-v5-global--BackgroundColor--150, #f5f5f5);
+}
+
+.dmn-diff-change-list__table-cell {
+  padding: 12px 16px;
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
+  color: var(--pf-v5-global--Color--100, #151515);
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dmn-diff-change-list__table-cell--index {
+  text-align: center;
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+  color: var(--pf-v5-global--Color--200, #6a6e73);
+  width: 60px;
+}
+
+.dmn-diff-change-list__table-cell--name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dmn-diff-change-list__table-cell--type {
+  text-transform: capitalize;
+  color: var(--pf-v5-global--Color--200, #6a6e73);
+  width: 200px;
+}
+
+.dmn-diff-change-list__table-cell--change {
+  width: 120px;
+}
+
 .dmn-diff-change-list__footer {
   padding: 8px 16px;
   border-top: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
