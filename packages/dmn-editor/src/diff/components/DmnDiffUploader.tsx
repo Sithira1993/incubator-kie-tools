@@ -137,6 +137,7 @@ export const FileUploadArea: React.FC<FileUploadAreaProps> = ({ version, label }
 
   return (
     <div className="dmn-diff-uploader__version">
+      <span className="dmn-diff-uploader__version-label">{label}</span>
       {/* When the upload area is interactive, the role and tabIndex are set to allow keyboard navigation */}
       <div
         className={getUploadAreaClassName()}
