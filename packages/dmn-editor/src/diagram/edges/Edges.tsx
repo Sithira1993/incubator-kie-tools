@@ -33,7 +33,6 @@ import { usePotentialWaypointControls } from "./usePotentialWaypointControls";
 import { useSettings } from "../../settings/DmnEditorSettingsContext";
 import { useDmnEditorStore } from "../../store/StoreContext";
 import { getDiffStyle } from "../../diff/styles/diffHighlightStyles";
-import { DiffChangeType } from "../../diff/types";
 
 export type DmnDiagramEdgeData = {
   dmnEdge: (Normalized<DMN_LATEST__DMNEdge> & { index: number }) | undefined;
