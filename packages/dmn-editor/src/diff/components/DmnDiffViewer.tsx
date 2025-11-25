@@ -37,6 +37,7 @@ import { CommandsContextProvider } from "../../commands/CommandsContextProvider"
 import { Viewport } from "reactflow";
 import { DmnDiffChangeList } from "./DmnDiffChangeList";
 import { parseXmlHref, buildXmlHref } from "@kie-tools/dmn-marshaller/dist/xml";
+import { DiffResult, DiffChangeType, DmnDiffFileVersion } from "../types";
 
 interface DiagramViewerProps {
   readonly label: string;
@@ -44,6 +45,8 @@ interface DiagramViewerProps {
   readonly diagramRef: React.RefObject<DiagramRef>;
   readonly sharedViewport: Viewport;
   readonly onViewportChange: (viewport: Viewport) => void;
+  readonly diffResult: DiffResult | null;
+  readonly version: DmnDiffFileVersion;
 }
 
 const DiagramViewer: React.FC<DiagramViewerProps> = ({
@@ -52,6 +55,8 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
   diagramRef,
   sharedViewport,
   onViewportChange,
+  diffResult,
+  version,
 }) => {
   const store = useMemo(
     () => createDmnEditorStore(model, new ComputedStateCache<Computed>(INITIAL_COMPUTED_CACHE)),
@@ -69,6 +74,43 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
       state.dmn.model = model;
     });
   }, [model, store]);
+
+  useEffect(() => {
+    storeRef.current.setState((state) => {
+      state.diagram.overlays.enableDiffHighlights = !!diffResult;
+      state.diagram.diffsByNodeId = new Map();
+
+      if (diffResult) {
+        for (const nodeDiff of diffResult.nodes) {
+          // Normalize the node ID to match the one used by the diagram
+          // If the node is local (namespace matches the model namespace), use the relative ID
+          const parsed = parseXmlHref(nodeDiff.id);
+          const namespace = model.definitions["@_namespace"];
+          const normalizedId =
+            !parsed.namespace || parsed.namespace === namespace
+              ? buildXmlHref({ id: parsed.id })
+              : buildXmlHref({ namespace: parsed.namespace, id: parsed.id });
+
+          const targetMap = state.diagram.diffsByNodeId;
+          if (!targetMap) {
+            continue;
+          }
+
+          const isVersionA = version === DmnDiffFileVersion.VERSION_A;
+          const isVersionB = version === DmnDiffFileVersion.VERSION_B;
+
+          const isRemovedOrModified =
+            nodeDiff.changeType === DiffChangeType.REMOVED || nodeDiff.changeType === DiffChangeType.MODIFIED;
+          const isAddedOrModified =
+            nodeDiff.changeType === DiffChangeType.ADDED || nodeDiff.changeType === DiffChangeType.MODIFIED;
+
+          if ((isVersionA && isRemovedOrModified) || (isVersionB && isAddedOrModified)) {
+            targetMap.set(normalizedId, nodeDiff.changeType);
+          }
+        }
+      }
+    });
+  }, [diffResult, version, store, model]);
 
   useEffect(() => {
     let previousViewport = storeRef.current.getState().diagram.viewport;
@@ -268,6 +310,8 @@ export const DmnDiffViewer: React.FC = () => {
             diagramRef={diagramARef}
             sharedViewport={sharedViewport}
             onViewportChange={handleViewportChange}
+            diffResult={diffResult}
+            version={DmnDiffFileVersion.VERSION_A}
           />
         ) : (
           <EmptyPanel label="Version A" />
@@ -279,6 +323,8 @@ export const DmnDiffViewer: React.FC = () => {
             diagramRef={diagramBRef}
             sharedViewport={sharedViewport}
             onViewportChange={handleViewportChange}
+            diffResult={diffResult}
+            version={DmnDiffFileVersion.VERSION_B}
           />
         ) : (
           <EmptyPanel label="Version B" />
