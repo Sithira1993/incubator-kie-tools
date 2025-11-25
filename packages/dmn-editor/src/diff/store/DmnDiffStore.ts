@@ -19,19 +19,26 @@
 
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { DmnDiffState, DmnDiffFileVersion } from "../types";
+import { DmnDiffState, DmnDiffFileVersion, DiffResult } from "../types";
 import { validateDmnFile } from "../validation";
+import { computeDmnDiff } from "../algorithms/dmnDiffAlgorithm";
 
 interface DmnDiffStore extends DmnDiffState {
+  // State
+  diffResult: DiffResult | null;
+  isChangeListOpen: boolean;
+
   // Actions
   setFile: (version: DmnDiffFileVersion, file: File) => Promise<void>;
   clearFile: (version: DmnDiffFileVersion) => void;
   resetAll: () => void;
+  toggleChangeList: () => void;
 
   // Computed
   isReadyForComparison: () => boolean;
   canClearVersionA: () => boolean;
   canClearVersionB: () => boolean;
+  getDiffResult: () => DiffResult | null;
 }
 
 const initialState: DmnDiffState = {
@@ -43,9 +50,15 @@ const initialState: DmnDiffState = {
   isLoadingB: false,
 };
 
+const initialStoreState = {
+  ...initialState,
+  diffResult: null as DiffResult | null,
+  isChangeListOpen: false,
+};
+
 export const useDmnDiffStore = create<DmnDiffStore>()(
   immer((set, get) => ({
-    ...initialState,
+    ...initialStoreState,
 
     setFile: async (version: DmnDiffFileVersion, file: File) => {
       // Set loading state
@@ -78,6 +91,18 @@ export const useDmnDiffStore = create<DmnDiffStore>()(
           state.isLoadingB = false;
         });
       }
+
+      // Compute diff if both files are ready
+      const state = get();
+      if (state.versionA?.model && state.versionB?.model && !state.versionAError && !state.versionBError) {
+        set((state) => {
+          state.diffResult = computeDmnDiff(state.versionA!.model, state.versionB!.model);
+        });
+      } else {
+        set((state) => {
+          state.diffResult = null;
+        });
+      }
     },
 
     clearFile: (version: DmnDiffFileVersion) => {
@@ -94,10 +119,28 @@ export const useDmnDiffStore = create<DmnDiffStore>()(
           state.isLoadingB = false;
         });
       }
+
+      // Recompute diff if both files are still ready
+      const state = get();
+      if (state.versionA?.model && state.versionB?.model && !state.versionAError && !state.versionBError) {
+        set((state) => {
+          state.diffResult = computeDmnDiff(state.versionA!.model, state.versionB!.model);
+        });
+      } else {
+        set((state) => {
+          state.diffResult = null;
+        });
+      }
     },
 
     resetAll: () => {
-      set(initialState);
+      set(initialStoreState);
+    },
+
+    toggleChangeList: () => {
+      set((state) => {
+        state.isChangeListOpen = !state.isChangeListOpen;
+      });
     },
 
     isReadyForComparison: () => {
@@ -120,6 +163,11 @@ export const useDmnDiffStore = create<DmnDiffStore>()(
     canClearVersionB: () => {
       const state = get();
       return state.versionB !== null || state.versionBError !== null;
+    },
+
+    getDiffResult: () => {
+      const state = get();
+      return state.diffResult;
     },
   }))
 );

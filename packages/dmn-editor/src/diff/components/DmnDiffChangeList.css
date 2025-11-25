@@ -1,0 +1,199 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.dmn-diff-change-list {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 1200px;
+  max-height: 60vh;
+  background-color: var(--pf-v5-global--BackgroundColor--100, #ffffff);
+  border-top: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  border-left: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  border-right: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  border-radius: var(--pf-v5-global--BorderRadius--md, 6px) var(--pf-v5-global--BorderRadius--md, 6px) 0 0;
+  box-shadow: var(--pf-v5-global--BoxShadow--lg, 0 -0.5rem 1rem rgba(0, 0, 0, 0.15));
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateX(-50%) translateY(100%);
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.dmn-diff-change-list__toggle-button {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background-color: var(--pf-v5-global--BackgroundColor--100, #ffffff);
+  border: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  box-shadow: var(--pf-v5-global--BoxShadow--md, 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1));
+  padding: 12px 24px;
+  border-radius: var(--pf-v5-global--BorderRadius--md, 6px);
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+}
+
+.dmn-diff-change-list__toggle-button:hover {
+  background-color: var(--pf-v5-global--BackgroundColor--150, #f5f5f5);
+  color: var(--pf-v5-global--Color--100, #151515);
+  box-shadow: var(--pf-v5-global--BoxShadow--lg, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+}
+
+.dmn-diff-change-list__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  background-color: var(--pf-v5-global--BackgroundColor--200, #f0f0f0);
+  flex-shrink: 0;
+}
+
+.dmn-diff-change-list__header h3 {
+  margin: 0;
+  font-size: var(--pf-v5-global--FontSize--md, 16px);
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+  color: var(--pf-v5-global--Color--100, #151515);
+}
+
+.dmn-diff-change-list__content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 200px;
+  max-height: calc(60vh - 120px);
+}
+
+.dmn-diff-change-list__empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--pf-v5-global--Color--200, #6a6e73);
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
+}
+
+.dmn-diff-change-list__table-wrapper {
+  position: relative;
+}
+
+.dmn-diff-change-list__table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  position: relative;
+}
+
+.dmn-diff-change-list__table-header {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
+  color: var(--pf-v5-global--Color--100, #151515);
+  background-color: var(--pf-v5-global--BackgroundColor--200, #f0f0f0);
+  border-bottom: 2px solid var(--pf-v5-global--BorderColor--200, #b8bbbe);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.dmn-diff-change-list__table-header--index {
+  width: 60px;
+  text-align: center;
+}
+
+.dmn-diff-change-list__table-header--name {
+  width: auto;
+}
+
+.dmn-diff-change-list__table-header--type {
+  width: 200px;
+}
+
+.dmn-diff-change-list__table-header--change {
+  width: 120px;
+}
+
+.dmn-diff-change-list__table-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  border-bottom: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  outline: none;
+}
+
+.dmn-diff-change-list__table-row:hover {
+  background-color: var(--pf-v5-global--BackgroundColor--150, #f5f5f5);
+}
+
+.dmn-diff-change-list__table-row:focus {
+  outline: 2px solid var(--pf-v5-global--primary-color--100, #06c);
+  outline-offset: -2px;
+}
+
+.dmn-diff-change-list__table-cell {
+  padding: 12px 16px;
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
+  color: var(--pf-v5-global--Color--100, #151515);
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dmn-diff-change-list__table-cell--index {
+  text-align: center;
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+  color: var(--pf-v5-global--Color--200, #6a6e73);
+  width: 60px;
+}
+
+.dmn-diff-change-list__table-cell--name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dmn-diff-change-list__table-cell--type {
+  text-transform: capitalize;
+  color: var(--pf-v5-global--Color--200, #6a6e73);
+  width: 200px;
+}
+
+.dmn-diff-change-list__table-cell--change {
+  width: 120px;
+}
+
+.dmn-diff-change-list__footer {
+  padding: 8px 16px;
+  border-top: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  background-color: var(--pf-v5-global--BackgroundColor--200, #f0f0f0);
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
+  color: var(--pf-v5-global--Color--200, #6a6e73);
+  text-align: center;
+  flex-shrink: 0;
+}

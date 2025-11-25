@@ -35,6 +35,8 @@ import { I18nDictionariesProvider } from "@kie-tools-core/i18n/dist/react-compon
 import { dmnEditorDictionaries, DmnEditorI18nContext, dmnEditorI18nDefaults } from "../../i18n";
 import { CommandsContextProvider } from "../../commands/CommandsContextProvider";
 import { Viewport } from "reactflow";
+import { DmnDiffChangeList } from "./DmnDiffChangeList";
+import { parseXmlHref, buildXmlHref } from "@kie-tools/dmn-marshaller/dist/xml";
 
 interface DiagramViewerProps {
   readonly label: string;
@@ -174,7 +176,7 @@ const EmptyPanel: React.FC<{ readonly label: string }> = ({ label }) => (
 );
 
 export const DmnDiffViewer: React.FC = () => {
-  const { versionA, versionB } = useDmnDiffStore();
+  const { versionA, versionB, diffResult, isChangeListOpen, toggleChangeList } = useDmnDiffStore();
   const [sharedViewport, setSharedViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const diagramARef = useRef<DiagramRef>(null);
   const diagramBRef = useRef<DiagramRef>(null);
@@ -182,6 +184,81 @@ export const DmnDiffViewer: React.FC = () => {
   const handleViewportChange = useCallback((viewport: Viewport) => {
     setSharedViewport(viewport);
   }, []);
+
+  const handleItemClick = useCallback(
+    (elementId: string) => {
+      const focusOnElement = (diagramRef: React.RefObject<DiagramRef>, modelNamespace: string | undefined) => {
+        const rfInstance = diagramRef.current?.getReactFlowInstance();
+        if (!rfInstance) {
+          return;
+        }
+
+        const parsed = parseXmlHref(elementId);
+        if (!parsed.id) {
+          return;
+        }
+
+        const normalizedNodeId =
+          !parsed.namespace || parsed.namespace === modelNamespace
+            ? `#${parsed.id}`
+            : buildXmlHref({ namespace: parsed.namespace, id: parsed.id });
+
+        const normalizedEdgeId =
+          !parsed.namespace || parsed.namespace === modelNamespace
+            ? parsed.id
+            : buildXmlHref({ namespace: parsed.namespace, id: parsed.id });
+
+        const nodes = rfInstance.getNodes();
+        const edges = rfInstance.getEdges();
+
+        const node = nodes.find((n) => n.id === normalizedNodeId);
+
+        if (node) {
+          const centerX = node.position.x + (node.width ?? 200) / 2;
+          const centerY = node.position.y + (node.height ?? 100) / 2;
+
+          rfInstance.setCenter(centerX, centerY, { duration: 300 });
+          return;
+        }
+
+        const edge = edges.find((e) => e.id === normalizedEdgeId || e.id === normalizedNodeId);
+
+        if (edge) {
+          const sourceNode = nodes.find((n) => n.id === edge.source);
+          const targetNode = nodes.find((n) => n.id === edge.target);
+
+          if (sourceNode && targetNode) {
+            const sourceCenterX = sourceNode.position.x + (sourceNode.width ?? 200) / 2;
+            const sourceCenterY = sourceNode.position.y + (sourceNode.height ?? 100) / 2;
+            const targetCenterX = targetNode.position.x + (targetNode.width ?? 200) / 2;
+            const targetCenterY = targetNode.position.y + (targetNode.height ?? 100) / 2;
+
+            const centerX = (sourceCenterX + targetCenterX) / 2;
+            const centerY = (sourceCenterY + targetCenterY) / 2;
+
+            rfInstance.setCenter(centerX, centerY, { duration: 300 });
+          } else if (sourceNode) {
+            const centerX = sourceNode.position.x + (sourceNode.width ?? 200) / 2;
+            const centerY = sourceNode.position.y + (sourceNode.height ?? 100) / 2;
+
+            rfInstance.setCenter(centerX, centerY, { duration: 300 });
+          } else if (targetNode) {
+            const centerX = targetNode.position.x + (targetNode.width ?? 200) / 2;
+            const centerY = targetNode.position.y + (targetNode.height ?? 100) / 2;
+
+            rfInstance.setCenter(centerX, centerY, { duration: 300 });
+          }
+        }
+      };
+
+      const namespaceA = versionA?.model?.definitions?.["@_namespace"];
+      const namespaceB = versionB?.model?.definitions?.["@_namespace"];
+
+      focusOnElement(diagramARef, namespaceA);
+      focusOnElement(diagramBRef, namespaceB);
+    },
+    [versionA, versionB]
+  );
 
   return (
     <div className="dmn-diff-viewer">
@@ -209,6 +286,12 @@ export const DmnDiffViewer: React.FC = () => {
           <EmptyPanel label="Version B" />
         )}
       </div>
+      <DmnDiffChangeList
+        diffResult={diffResult}
+        isOpen={isChangeListOpen}
+        onToggle={toggleChangeList}
+        onItemClick={handleItemClick}
+      />
     </div>
   );
 };
