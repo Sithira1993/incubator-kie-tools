@@ -98,8 +98,6 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
 
       if (diffResult) {
         for (const nodeDiff of diffResult.nodes) {
-          // Normalize the node ID to match the one used by the diagram
-          // If the node is local (namespace matches the model namespace), use the relative ID
           const parsed = parseXmlHref(nodeDiff.id);
           const namespace = model.definitions["@_namespace"];
           const normalizedId =
@@ -324,8 +322,12 @@ export const DmnDiffViewer: React.FC = () => {
 
       focusOnElement(diagramARef, namespaceA);
       focusOnElement(diagramBRef, namespaceB);
+
+      if (isChangeListOpen) {
+        toggleChangeList();
+      }
     },
-    [versionA, versionB]
+    [versionA, versionB, isChangeListOpen, toggleChangeList]
   );
 
   return (
