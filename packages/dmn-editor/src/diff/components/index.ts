@@ -18,3 +18,4 @@
  */
 
 export * from "./DmnDiffUploader";
+export * from "./DmnDiffViewer";

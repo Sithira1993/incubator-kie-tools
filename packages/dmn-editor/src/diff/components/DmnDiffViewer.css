@@ -1,0 +1,106 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.dmn-diff-viewer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: var(--pf-v5-global--BackgroundColor--100, #ffffff);
+}
+
+.dmn-diff-viewer__panels {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.dmn-diff-viewer__panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  position: relative;
+  background-color: var(--pf-v5-global--BackgroundColor--100, #ffffff);
+  overflow: hidden;
+}
+
+.dmn-diff-viewer__panel:not(:last-child) {
+  border-right: none;
+}
+
+.dmn-diff-viewer__panel-header {
+  height: 40px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  background-color: var(--pf-v5-global--BackgroundColor--200, #f0f0f0);
+  border-bottom: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
+  color: var(--pf-v5-global--Color--100, #151515);
+  flex-shrink: 0;
+}
+
+.dmn-diff-viewer__diagram-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.dmn-diff-viewer__panel--empty {
+  justify-content: center;
+  align-items: center;
+}
+
+.dmn-diff-viewer__empty-state {
+  text-align: center;
+  color: var(--pf-v5-global--Color--200, #6a6e73);
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
+}
+
+.dmn-diff-viewer__diagram-container .react-flow {
+  width: 100%;
+  height: 100%;
+}
+
+.dmn-diff-viewer__diagram-container .kie-dmn-editor--properties-panel-toggle,
+.dmn-diff-viewer__diagram-container .kie-dmn-editor--overlays-panel-toggle,
+.dmn-diff-viewer__diagram-container .kie-dmn-editor--autolayout-panel-toggle,
+.dmn-diff-viewer__diagram-container .kie-dmn-editor--palette {
+  display: none;
+}
+
+.dmn-diff-viewer__diagram-container .react-flow__node {
+  pointer-events: none;
+  cursor: default;
+}
+
+.dmn-diff-viewer__diagram-container .react-flow__edge {
+  pointer-events: none;
+}
+
+.dmn-diff-viewer__diagram-container > div {
+  width: 100%;
+  height: 100%;
+}

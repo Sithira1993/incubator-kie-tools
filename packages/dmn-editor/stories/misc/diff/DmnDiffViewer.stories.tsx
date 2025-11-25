@@ -17,10 +17,23 @@
  * under the License.
  */
 
-export * from "./components";
-export * from "./types";
-export * from "./constants";
-export * from "./validation";
-export * from "./store/DmnDiffStore";
-export * from "./algorithms/dmnDiffAlgorithm";
-export * from "./DmnDiffSideBySideView";
+import * as React from "react";
+import type { Meta, StoryObj } from "@storybook/react";
+import "@patternfly/react-core/dist/styles/base.css";
+import { DmnDiffSideBySideView } from "../../../src/diff/DmnDiffSideBySideView";
+
+const meta: Meta = {
+  title: "Misc/DMN Diff",
+  parameters: {
+    layout: "fullscreen",
+  },
+};
+
+export default meta;
+
+type Story = StoryObj;
+
+export const Story3SideBySideView: Story = {
+  name: "Side by Side View",
+  render: () => <DmnDiffSideBySideView />,
+};

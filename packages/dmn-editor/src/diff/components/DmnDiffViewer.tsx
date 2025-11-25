@@ -1,0 +1,214 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import * as React from "react";
+import { useMemo, useRef, useEffect, useState, useCallback } from "react";
+import { useDmnDiffStore } from "../store/DmnDiffStore";
+import "./DmnDiffViewer.css";
+import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
+import { DmnLatestModel } from "@kie-tools/dmn-marshaller";
+import { Computed, createDmnEditorStore } from "../../store/Store";
+import { ComputedStateCache } from "../../store/ComputedStateCache";
+import { INITIAL_COMPUTED_CACHE } from "../../store/computed/initial";
+import { DmnEditorStoreApiContext, StoreApiType } from "../../store/StoreContext";
+import { DmnEditorExternalModelsContextProvider } from "../../includedModels/DmnEditorDependenciesContext";
+import { DmnEditorSettingsContextProvider } from "../../settings/DmnEditorSettingsContext";
+import { DmnEditorContextProvider } from "../../DmnEditorContext";
+import { Diagram, DiagramRef } from "../../diagram/Diagram";
+import { I18nDictionariesProvider } from "@kie-tools-core/i18n/dist/react-components";
+import { dmnEditorDictionaries, DmnEditorI18nContext, dmnEditorI18nDefaults } from "../../i18n";
+import { CommandsContextProvider } from "../../commands/CommandsContextProvider";
+import { Viewport } from "reactflow";
+
+interface DiagramViewerProps {
+  readonly label: string;
+  readonly model: Normalized<DmnLatestModel>;
+  readonly diagramRef: React.RefObject<DiagramRef>;
+  readonly sharedViewport: Viewport;
+  readonly onViewportChange: (viewport: Viewport) => void;
+}
+
+const VIEWPORT_EPSILONS = { x: 0.1, y: 0.1, zoom: 0.001 };
+const VIEWPORT_APPLY_DEBOUNCE_MS = 50;
+
+const areViewportsApproximatelyEqual = (a?: Viewport | null, b?: Viewport | null) => {
+  if (!a || !b) {
+    return false;
+  }
+
+  return (
+    Math.abs(a.x - b.x) < VIEWPORT_EPSILONS.x &&
+    Math.abs(a.y - b.y) < VIEWPORT_EPSILONS.y &&
+    Math.abs(a.zoom - b.zoom) < VIEWPORT_EPSILONS.zoom
+  );
+};
+
+const DiagramViewer: React.FC<DiagramViewerProps> = ({
+  label,
+  model,
+  diagramRef,
+  sharedViewport,
+  onViewportChange,
+}) => {
+  const store = useMemo(
+    () => createDmnEditorStore(model, new ComputedStateCache<Computed>(INITIAL_COMPUTED_CACHE)),
+    [model]
+  );
+  const storeRef = useRef<StoreApiType>(store);
+  storeRef.current = store;
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isApplyingViewportRef = useRef(false);
+  const lastEmittedViewportRef = useRef<Viewport | null>(null);
+
+  useEffect(() => {
+    storeRef.current.setState((state) => {
+      state.dmn.model = model;
+    });
+  }, [model, store]);
+
+  useEffect(() => {
+    let previousViewport = storeRef.current.getState().diagram.viewport;
+
+    const unsubscribe = storeRef.current.subscribe((state) => {
+      const viewport = state.diagram.viewport;
+      if (viewport && !isApplyingViewportRef.current) {
+        const newViewport: Viewport = { x: viewport.x, y: viewport.y, zoom: viewport.zoom };
+        if (!previousViewport || !areViewportsApproximatelyEqual(previousViewport, newViewport)) {
+          previousViewport = viewport;
+          lastEmittedViewportRef.current = newViewport;
+          onViewportChange(newViewport);
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [onViewportChange]);
+
+  useEffect(() => {
+    if (isApplyingViewportRef.current) {
+      return;
+    }
+
+    if (areViewportsApproximatelyEqual(lastEmittedViewportRef.current, sharedViewport)) {
+      return;
+    }
+
+    const rfInstance = diagramRef.current?.getReactFlowInstance();
+    if (!rfInstance) {
+      return;
+    }
+
+    const currentViewport = rfInstance.getViewport();
+    const hasChanged = !areViewportsApproximatelyEqual(currentViewport, sharedViewport);
+
+    if (hasChanged) {
+      isApplyingViewportRef.current = true;
+      rfInstance.setViewport(sharedViewport);
+      setTimeout(() => {
+        isApplyingViewportRef.current = false;
+      }, VIEWPORT_APPLY_DEBOUNCE_MS);
+    }
+  }, [sharedViewport, diagramRef]);
+
+  return (
+    <div className="dmn-diff-viewer__panel">
+      <div className="dmn-diff-viewer__panel-header">{label}</div>
+      <div className="dmn-diff-viewer__diagram-container" ref={containerRef}>
+        <I18nDictionariesProvider
+          defaults={dmnEditorI18nDefaults}
+          dictionaries={dmnEditorDictionaries}
+          initialLocale={undefined}
+          ctx={DmnEditorI18nContext}
+        >
+          <DmnEditorContextProvider
+            model={model}
+            externalContextName={undefined}
+            externalContextDescription={undefined}
+            issueTrackerHref={undefined}
+            onRequestToJumpToPath={undefined}
+            onRequestToResolvePath={undefined}
+            evaluationResultsByNodeId={new Map()}
+          >
+            <DmnEditorSettingsContextProvider isReadOnly={true}>
+              <DmnEditorExternalModelsContextProvider
+                externalModelsByNamespace={{}}
+                onRequestExternalModelByPath={async () => null}
+                onRequestExternalModelsAvailableToInclude={async () => []}
+              >
+                <DmnEditorStoreApiContext.Provider value={storeRef.current}>
+                  <CommandsContextProvider>
+                    <Diagram container={containerRef} ref={diagramRef} />
+                  </CommandsContextProvider>
+                </DmnEditorStoreApiContext.Provider>
+              </DmnEditorExternalModelsContextProvider>
+            </DmnEditorSettingsContextProvider>
+          </DmnEditorContextProvider>
+        </I18nDictionariesProvider>
+      </div>
+    </div>
+  );
+};
+
+const EmptyPanel: React.FC<{ readonly label: string }> = ({ label }) => (
+  <div className="dmn-diff-viewer__panel dmn-diff-viewer__panel--empty">
+    <div className="dmn-diff-viewer__panel-header">{label}</div>
+    <div className="dmn-diff-viewer__empty-state">No diagram loaded</div>
+  </div>
+);
+
+export const DmnDiffViewer: React.FC = () => {
+  const { versionA, versionB } = useDmnDiffStore();
+  const [sharedViewport, setSharedViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
+  const diagramARef = useRef<DiagramRef>(null);
+  const diagramBRef = useRef<DiagramRef>(null);
+
+  const handleViewportChange = useCallback((viewport: Viewport) => {
+    setSharedViewport(viewport);
+  }, []);
+
+  return (
+    <div className="dmn-diff-viewer">
+      <div className="dmn-diff-viewer__panels">
+        {versionA?.model ? (
+          <DiagramViewer
+            label="Version A"
+            model={versionA.model}
+            diagramRef={diagramARef}
+            sharedViewport={sharedViewport}
+            onViewportChange={handleViewportChange}
+          />
+        ) : (
+          <EmptyPanel label="Version A" />
+        )}
+        {versionB?.model ? (
+          <DiagramViewer
+            label="Version B"
+            model={versionB.model}
+            diagramRef={diagramBRef}
+            sharedViewport={sharedViewport}
+            onViewportChange={handleViewportChange}
+          />
+        ) : (
+          <EmptyPanel label="Version B" />
+        )}
+      </div>
+    </div>
+  );
+};

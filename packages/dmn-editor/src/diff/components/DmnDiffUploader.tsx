@@ -32,12 +32,12 @@ import { DmnDiffFileVersion } from "../types";
 import { ALLOWED_FILE_EXTENSION } from "../constants";
 import "./DmnDiffUploader.css";
 
-interface FileUploadAreaProps {
-  version: DmnDiffFileVersion;
-  label: string;
+export interface FileUploadAreaProps {
+  readonly version: DmnDiffFileVersion;
+  readonly label: string;
 }
 
-const FileUploadArea: React.FC<FileUploadAreaProps> = ({ version, label }) => {
+export const FileUploadArea: React.FC<FileUploadAreaProps> = ({ version, label }) => {
   const { setFile, clearFile, versionA, versionB, versionAError, versionBError, isLoadingA, isLoadingB } =
     useDmnDiffStore();
 
@@ -168,7 +168,7 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ version, label }) => {
           <>
             <UploadIcon className="dmn-diff-uploader__upload-icon" />
             <div className="dmn-diff-uploader__upload-text">
-              <strong>Click to upload</strong> or drag and drop
+              <strong>Click to upload {label}</strong> or drag and drop
             </div>
             <div className="dmn-diff-uploader__upload-hint">DMN files only (max 5MB)</div>
           </>
