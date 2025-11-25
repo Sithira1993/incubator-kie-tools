@@ -167,10 +167,7 @@ export const useDmnDiffStore = create<DmnDiffStore>()(
 
     getDiffResult: () => {
       const state = get();
-      if (state.versionA?.model && state.versionB?.model && !state.versionAError && !state.versionBError) {
-        return computeDmnDiff(state.versionA.model, state.versionB.model);
-      }
-      return null;
+      return state.diffResult;
     },
   }))
 );
