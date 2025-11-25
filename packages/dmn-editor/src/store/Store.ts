@@ -116,6 +116,7 @@ export interface State {
       enableDiffHighlights: boolean;
     };
     diffsByNodeId?: Map<string, DiffChangeType>;
+    diffsByEdgeId?: Map<string, DiffChangeType>;
     snapGrid: SnapGrid;
     _selectedNodes: Array<string>;
     _selectedEdges: Array<string>;
@@ -233,6 +234,7 @@ export const defaultStaticState = (): Omit<State, "dmn" | "dispatch" | "computed
       enableDiffHighlights: false,
     },
     diffsByNodeId: new Map(),
+    diffsByEdgeId: new Map(),
     snapGrid: {
       isEnabled: true,
       x: 20,

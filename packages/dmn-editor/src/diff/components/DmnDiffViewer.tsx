@@ -94,6 +94,7 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
     storeRef.current.setState((state) => {
       state.diagram.overlays.enableDiffHighlights = !!diffResult;
       state.diagram.diffsByNodeId = new Map();
+      state.diagram.diffsByEdgeId = new Map();
 
       if (diffResult) {
         for (const nodeDiff of diffResult.nodes) {
@@ -121,6 +122,31 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
 
           if ((isVersionA && isRemovedOrModified) || (isVersionB && isAddedOrModified)) {
             targetMap.set(normalizedId, nodeDiff.changeType);
+          }
+        }
+        for (const edgeDiff of diffResult.edges) {
+          const parsed = parseXmlHref(edgeDiff.id);
+          const namespace = model.definitions["@_namespace"];
+          const normalizedId =
+            !parsed.namespace || parsed.namespace === namespace
+              ? parsed.id ?? edgeDiff.id
+              : buildXmlHref({ namespace: parsed.namespace, id: parsed.id });
+
+          const targetMap = state.diagram.diffsByEdgeId;
+          if (!targetMap || !normalizedId) {
+            continue;
+          }
+
+          const isVersionA = version === DmnDiffFileVersion.VERSION_A;
+          const isVersionB = version === DmnDiffFileVersion.VERSION_B;
+
+          const isRemovedOrModified =
+            edgeDiff.changeType === DiffChangeType.REMOVED || edgeDiff.changeType === DiffChangeType.MODIFIED;
+          const isAddedOrModified =
+            edgeDiff.changeType === DiffChangeType.ADDED || edgeDiff.changeType === DiffChangeType.MODIFIED;
+
+          if ((isVersionA && isRemovedOrModified) || (isVersionB && isAddedOrModified)) {
+            targetMap.set(normalizedId, edgeDiff.changeType);
           }
         }
       }
