@@ -44,6 +44,20 @@ interface DiagramViewerProps {
   readonly onViewportChange: (viewport: Viewport) => void;
 }
 
+const VIEWPORT_EPSILONS = { x: 0.1, y: 0.1, zoom: 0.001 };
+
+const areViewportsApproximatelyEqual = (a?: Viewport | null, b?: Viewport | null) => {
+  if (!a || !b) {
+    return false;
+  }
+
+  return (
+    Math.abs(a.x - b.x) < VIEWPORT_EPSILONS.x &&
+    Math.abs(a.y - b.y) < VIEWPORT_EPSILONS.y &&
+    Math.abs(a.zoom - b.zoom) < VIEWPORT_EPSILONS.zoom
+  );
+};
+
 const DiagramViewer: React.FC<DiagramViewerProps> = ({
   label,
   model,
@@ -75,12 +89,7 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
       const viewport = state.diagram.viewport;
       if (viewport && !isApplyingViewportRef.current) {
         const newViewport: Viewport = { x: viewport.x, y: viewport.y, zoom: viewport.zoom };
-        if (
-          !previousViewport ||
-          Math.abs(previousViewport.x - newViewport.x) > 0.1 ||
-          Math.abs(previousViewport.y - newViewport.y) > 0.1 ||
-          Math.abs(previousViewport.zoom - newViewport.zoom) > 0.001
-        ) {
+        if (!previousViewport || !areViewportsApproximatelyEqual(previousViewport, newViewport)) {
           previousViewport = viewport;
           lastEmittedViewportRef.current = newViewport;
           onViewportChange(newViewport);
@@ -96,12 +105,7 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
       return;
     }
 
-    if (
-      lastEmittedViewportRef.current &&
-      Math.abs(lastEmittedViewportRef.current.x - sharedViewport.x) < 0.1 &&
-      Math.abs(lastEmittedViewportRef.current.y - sharedViewport.y) < 0.1 &&
-      Math.abs(lastEmittedViewportRef.current.zoom - sharedViewport.zoom) < 0.001
-    ) {
+    if (areViewportsApproximatelyEqual(lastEmittedViewportRef.current, sharedViewport)) {
       return;
     }
 
@@ -111,10 +115,7 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
     }
 
     const currentViewport = rfInstance.getViewport();
-    const hasChanged =
-      Math.abs(currentViewport.x - sharedViewport.x) > 0.1 ||
-      Math.abs(currentViewport.y - sharedViewport.y) > 0.1 ||
-      Math.abs(currentViewport.zoom - sharedViewport.zoom) > 0.001;
+    const hasChanged = !areViewportsApproximatelyEqual(currentViewport, sharedViewport);
 
     if (hasChanged) {
       isApplyingViewportRef.current = true;
