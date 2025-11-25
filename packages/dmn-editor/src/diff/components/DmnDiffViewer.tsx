@@ -45,6 +45,7 @@ interface DiagramViewerProps {
 }
 
 const VIEWPORT_EPSILONS = { x: 0.1, y: 0.1, zoom: 0.001 };
+const VIEWPORT_APPLY_DEBOUNCE_MS = 50;
 
 const areViewportsApproximatelyEqual = (a?: Viewport | null, b?: Viewport | null) => {
   if (!a || !b) {
@@ -122,7 +123,7 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
       rfInstance.setViewport(sharedViewport);
       setTimeout(() => {
         isApplyingViewportRef.current = false;
-      }, 50);
+      }, VIEWPORT_APPLY_DEBOUNCE_MS);
     }
   }, [sharedViewport, diagramRef]);
 
