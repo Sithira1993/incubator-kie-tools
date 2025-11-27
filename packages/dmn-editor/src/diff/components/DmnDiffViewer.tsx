@@ -93,6 +93,9 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
   // Memoize the creation of diffsByNodeId and diffsByEdgeId Maps
   const diffsByNodeId = useMemo(() => {
     const map = new Map();
+    const isVersionA = version === DmnDiffFileVersion.VERSION_A;
+    const isVersionB = version === DmnDiffFileVersion.VERSION_B;
+
     if (diffResult) {
       for (const nodeDiff of diffResult.nodes) {
         const parsed = parseXmlHref(nodeDiff.id);
@@ -101,9 +104,6 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
           !parsed.namespace || parsed.namespace === namespace
             ? buildXmlHref({ id: parsed.id })
             : buildXmlHref({ namespace: parsed.namespace, id: parsed.id });
-
-        const isVersionA = version === DmnDiffFileVersion.VERSION_A;
-        const isVersionB = version === DmnDiffFileVersion.VERSION_B;
 
         const isRemovedOrModified =
           nodeDiff.changeType === DiffChangeType.REMOVED || nodeDiff.changeType === DiffChangeType.MODIFIED;
@@ -120,6 +120,9 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
 
   const diffsByEdgeId = useMemo(() => {
     const map = new Map();
+    const isVersionA = version === DmnDiffFileVersion.VERSION_A;
+    const isVersionB = version === DmnDiffFileVersion.VERSION_B;
+
     if (diffResult) {
       for (const edgeDiff of diffResult.edges) {
         const parsed = parseXmlHref(edgeDiff.id);
@@ -132,9 +135,6 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
         if (!normalizedId) {
           continue;
         }
-
-        const isVersionA = version === DmnDiffFileVersion.VERSION_A;
-        const isVersionB = version === DmnDiffFileVersion.VERSION_B;
 
         const isRemovedOrModified =
           edgeDiff.changeType === DiffChangeType.REMOVED || edgeDiff.changeType === DiffChangeType.MODIFIED;
