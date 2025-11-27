@@ -90,66 +90,72 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
     });
   }, [model, store]);
 
+  // Memoize the creation of diffsByNodeId and diffsByEdgeId Maps
+  const diffsByNodeId = useMemo(() => {
+    const map = new Map();
+    if (diffResult) {
+      for (const nodeDiff of diffResult.nodes) {
+        const parsed = parseXmlHref(nodeDiff.id);
+        const namespace = model.definitions["@_namespace"];
+        const normalizedId =
+          !parsed.namespace || parsed.namespace === namespace
+            ? buildXmlHref({ id: parsed.id })
+            : buildXmlHref({ namespace: parsed.namespace, id: parsed.id });
+
+        const isVersionA = version === DmnDiffFileVersion.VERSION_A;
+        const isVersionB = version === DmnDiffFileVersion.VERSION_B;
+
+        const isRemovedOrModified =
+          nodeDiff.changeType === DiffChangeType.REMOVED || nodeDiff.changeType === DiffChangeType.MODIFIED;
+        const isAddedOrModified =
+          nodeDiff.changeType === DiffChangeType.ADDED || nodeDiff.changeType === DiffChangeType.MODIFIED;
+
+        if ((isVersionA && isRemovedOrModified) || (isVersionB && isAddedOrModified)) {
+          map.set(normalizedId, nodeDiff.changeType);
+        }
+      }
+    }
+    return map;
+  }, [diffResult, version, model]);
+
+  const diffsByEdgeId = useMemo(() => {
+    const map = new Map();
+    if (diffResult) {
+      for (const edgeDiff of diffResult.edges) {
+        const parsed = parseXmlHref(edgeDiff.id);
+        const namespace = model.definitions["@_namespace"];
+        const normalizedId =
+          !parsed.namespace || parsed.namespace === namespace
+            ? parsed.id ?? edgeDiff.id
+            : buildXmlHref({ namespace: parsed.namespace, id: parsed.id });
+
+        if (!normalizedId) {
+          continue;
+        }
+
+        const isVersionA = version === DmnDiffFileVersion.VERSION_A;
+        const isVersionB = version === DmnDiffFileVersion.VERSION_B;
+
+        const isRemovedOrModified =
+          edgeDiff.changeType === DiffChangeType.REMOVED || edgeDiff.changeType === DiffChangeType.MODIFIED;
+        const isAddedOrModified =
+          edgeDiff.changeType === DiffChangeType.ADDED || edgeDiff.changeType === DiffChangeType.MODIFIED;
+
+        if ((isVersionA && isRemovedOrModified) || (isVersionB && isAddedOrModified)) {
+          map.set(normalizedId, edgeDiff.changeType);
+        }
+      }
+    }
+    return map;
+  }, [diffResult, version, model]);
+
   useEffect(() => {
     storeRef.current.setState((state) => {
       state.diagram.overlays.enableDiffHighlights = !!diffResult;
-      state.diagram.diffsByNodeId = new Map();
-      state.diagram.diffsByEdgeId = new Map();
-
-      if (diffResult) {
-        for (const nodeDiff of diffResult.nodes) {
-          const parsed = parseXmlHref(nodeDiff.id);
-          const namespace = model.definitions["@_namespace"];
-          const normalizedId =
-            !parsed.namespace || parsed.namespace === namespace
-              ? buildXmlHref({ id: parsed.id })
-              : buildXmlHref({ namespace: parsed.namespace, id: parsed.id });
-
-          const targetMap = state.diagram.diffsByNodeId;
-          if (!targetMap) {
-            continue;
-          }
-
-          const isVersionA = version === DmnDiffFileVersion.VERSION_A;
-          const isVersionB = version === DmnDiffFileVersion.VERSION_B;
-
-          const isRemovedOrModified =
-            nodeDiff.changeType === DiffChangeType.REMOVED || nodeDiff.changeType === DiffChangeType.MODIFIED;
-          const isAddedOrModified =
-            nodeDiff.changeType === DiffChangeType.ADDED || nodeDiff.changeType === DiffChangeType.MODIFIED;
-
-          if ((isVersionA && isRemovedOrModified) || (isVersionB && isAddedOrModified)) {
-            targetMap.set(normalizedId, nodeDiff.changeType);
-          }
-        }
-        for (const edgeDiff of diffResult.edges) {
-          const parsed = parseXmlHref(edgeDiff.id);
-          const namespace = model.definitions["@_namespace"];
-          const normalizedId =
-            !parsed.namespace || parsed.namespace === namespace
-              ? parsed.id ?? edgeDiff.id
-              : buildXmlHref({ namespace: parsed.namespace, id: parsed.id });
-
-          const targetMap = state.diagram.diffsByEdgeId;
-          if (!targetMap || !normalizedId) {
-            continue;
-          }
-
-          const isVersionA = version === DmnDiffFileVersion.VERSION_A;
-          const isVersionB = version === DmnDiffFileVersion.VERSION_B;
-
-          const isRemovedOrModified =
-            edgeDiff.changeType === DiffChangeType.REMOVED || edgeDiff.changeType === DiffChangeType.MODIFIED;
-          const isAddedOrModified =
-            edgeDiff.changeType === DiffChangeType.ADDED || edgeDiff.changeType === DiffChangeType.MODIFIED;
-
-          if ((isVersionA && isRemovedOrModified) || (isVersionB && isAddedOrModified)) {
-            targetMap.set(normalizedId, edgeDiff.changeType);
-          }
-        }
-      }
+      state.diagram.diffsByNodeId = diffsByNodeId;
+      state.diagram.diffsByEdgeId = diffsByEdgeId;
     });
-  }, [diffResult, version, store, model]);
+  }, [diffResult, diffsByNodeId, diffsByEdgeId]);
 
   useEffect(() => {
     let previousViewport = storeRef.current.getState().diagram.viewport;
