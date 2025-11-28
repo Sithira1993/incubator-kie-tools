@@ -37,6 +37,7 @@ import { computeIsDropTargetNodeValidForSelection } from "./computed/computeIsDr
 import { DEFAULT_VIEWPORT } from "../diagram/Diagram";
 import { computeExternalDmnModelsByNamespaceMap } from "./computed/computeExternalDmnModelsByNamespaceMap";
 import { computeConflictedDecisionServices } from "./computed/computeConflictedDecisionServices";
+import { DiffChangeType } from "../diff/types";
 
 enableMapSet(); // Necessary because `Computed` has a lot of Maps and Sets.
 
@@ -112,7 +113,10 @@ export interface State {
       enableDataTypesToolbarOnNodes: boolean;
       enableCustomNodeStyles: boolean;
       enableEvaluationHighlights: boolean;
+      enableDiffHighlights: boolean;
     };
+    diffsByNodeId?: Map<string, DiffChangeType>;
+    diffsByEdgeId?: Map<string, DiffChangeType>;
     snapGrid: SnapGrid;
     _selectedNodes: Array<string>;
     _selectedEdges: Array<string>;
@@ -227,7 +231,10 @@ export const defaultStaticState = (): Omit<State, "dmn" | "dispatch" | "computed
       enableCustomNodeStyles: true,
       enableDataTypesToolbarOnNodes: true,
       enableEvaluationHighlights: false,
+      enableDiffHighlights: false,
     },
+    diffsByNodeId: new Map(),
+    diffsByEdgeId: new Map(),
     snapGrid: {
       isEnabled: true,
       x: 20,

@@ -31,6 +31,8 @@ import { useAlwaysVisibleEdgeUpdatersAtNodeBorders } from "./useAlwaysVisibleEdg
 import { useKieEdgePath } from "./useKieEdgePath";
 import { usePotentialWaypointControls } from "./usePotentialWaypointControls";
 import { useSettings } from "../../settings/DmnEditorSettingsContext";
+import { useDmnEditorStore } from "../../store/StoreContext";
+import { getDiffStyle } from "../../diff/styles/diffHighlightStyles";
 
 export type DmnDiagramEdgeData = {
   dmnEdge: (Normalized<DMN_LATEST__DMNEdge> & { index: number }) | undefined;
@@ -40,67 +42,93 @@ export type DmnDiagramEdgeData = {
 };
 
 export const InformationRequirementPath = React.memo(
-  (_props: React.SVGProps<SVGPathElement> & { svgRef?: React.RefObject<SVGPathElement> }) => {
-    const { svgRef, ...props } = _props;
+  (
+    _props: React.SVGProps<SVGPathElement> & {
+      svgRef?: React.RefObject<SVGPathElement>;
+      diffStrokeColor?: string;
+      diffStrokeWidth?: number;
+    }
+  ) => {
+    const { svgRef, diffStrokeColor, diffStrokeWidth, style, ...props } = _props;
+    const strokeColor = diffStrokeColor ?? "black";
+    const strokeWidth = diffStrokeWidth ?? 1;
     return (
-      <>
-        <path ref={svgRef} style={{ strokeWidth: 1, stroke: "black" }} markerEnd={"url(#closed-arrow)"} {...props} />
-      </>
+      <path
+        ref={svgRef}
+        style={{ strokeWidth, stroke: strokeColor, ...style }}
+        markerEnd={"url(#closed-arrow)"}
+        {...props}
+      />
     );
   }
 );
 
 export const KnowledgeRequirementPath = React.memo(
-  (__props: React.SVGProps<SVGPathElement> & { svgRef?: React.RefObject<SVGPathElement> }) => {
-    const { svgRef, ...props } = __props;
+  (
+    __props: React.SVGProps<SVGPathElement> & {
+      svgRef?: React.RefObject<SVGPathElement>;
+      diffStrokeColor?: string;
+      diffStrokeWidth?: number;
+    }
+  ) => {
+    const { svgRef, diffStrokeColor, diffStrokeWidth, style, ...props } = __props;
+    const strokeColor = diffStrokeColor ?? "black";
+    const strokeWidth = diffStrokeWidth ?? 1;
     return (
-      <>
-        <path
-          ref={svgRef}
-          style={{ strokeWidth: 1, stroke: "black", strokeDasharray: "5,5" }}
-          markerEnd={"url(#open-arrow)"}
-          {...props}
-        />
-      </>
+      <path
+        ref={svgRef}
+        style={{ strokeWidth, stroke: strokeColor, strokeDasharray: "5,5", ...style }}
+        markerEnd={"url(#open-arrow)"}
+        {...props}
+      />
     );
   }
 );
 
 export const AuthorityRequirementPath = React.memo(
   (
-    __props: React.SVGProps<SVGPathElement> & { centerToConnectionPoint: boolean | undefined } & {
+    __props: React.SVGProps<SVGPathElement> & {
+      centerToConnectionPoint: boolean | undefined;
       svgRef?: React.RefObject<SVGPathElement>;
+      diffStrokeColor?: string;
+      diffStrokeWidth?: number;
     }
   ) => {
-    const { centerToConnectionPoint: center, svgRef, ...props } = __props;
+    const { centerToConnectionPoint: center, svgRef, diffStrokeColor, diffStrokeWidth, style, ...props } = __props;
+    const strokeColor = diffStrokeColor ?? "black";
+    const strokeWidth = diffStrokeWidth ?? 1;
     return (
-      <>
-        <path
-          ref={svgRef}
-          style={{ strokeWidth: 1, stroke: "black", strokeDasharray: "5,5" }}
-          markerEnd={center ? `url(#closed-circle-at-center)` : `url(#closed-circle-at-border)`}
-          {...props}
-        />
-      </>
+      <path
+        ref={svgRef}
+        style={{ strokeWidth, stroke: strokeColor, strokeDasharray: "5,5", ...style }}
+        markerEnd={center ? `url(#closed-circle-at-center)` : `url(#closed-circle-at-border)`}
+        {...props}
+      />
     );
   }
 );
 
 export const AssociationPath = React.memo(
-  (__props: React.SVGProps<SVGPathElement> & { svgRef?: React.RefObject<SVGPathElement> }) => {
-    const strokeWidth = __props.strokeWidth ?? 1.5;
-    const { svgRef, ...props } = __props;
+  (
+    __props: React.SVGProps<SVGPathElement> & {
+      svgRef?: React.RefObject<SVGPathElement>;
+      diffStrokeColor?: string;
+      diffStrokeWidth?: number;
+    }
+  ) => {
+    const baseStrokeWidth = __props.strokeWidth ?? 1.5;
+    const strokeWidth = __props.diffStrokeWidth ?? baseStrokeWidth;
+    const strokeColor = __props.diffStrokeColor ?? "black";
+    const { svgRef, diffStrokeColor, diffStrokeWidth, style, ...props } = __props;
     return (
-      <>
-        <path
-          ref={svgRef}
-          strokeWidth={strokeWidth}
-          strokeLinecap="butt"
-          strokeLinejoin="round"
-          style={{ stroke: "black", strokeDasharray: `${strokeWidth},10` }}
-          {...props}
-        />
-      </>
+      <path
+        ref={svgRef}
+        strokeWidth={strokeWidth}
+        strokeLinecap="butt"
+        strokeLinejoin="round"
+        style={{ stroke: strokeColor, strokeDasharray: `${strokeWidth},10`, ...style }}
+        {...props}
+      />
     );
   }
 );
@@ -149,6 +177,9 @@ export const InformationRequirementEdge = React.memo((props: RF.EdgeProps<DmnDia
   const isConnecting = !!RF.useStore((s) => s.connectionNodeId);
   const className = useEdgeClassName(isConnecting, isDraggingWaypoint);
 
+  const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByEdgeId?.get(props.id));
+  const diffStyle = React.useMemo(() => getDiffStyle(diffChangeType), [diffChangeType]);
+
   useAlwaysVisibleEdgeUpdatersAtNodeBorders(interactionPathRef, props.source, props.target, waypoints);
 
   return (
@@ -164,7 +195,12 @@ export const InformationRequirementEdge = React.memo((props: RF.EdgeProps<DmnDia
         data-edgetype={"information-requirement"}
         visibility={settings.isReadOnly ? "hidden" : undefined}
       />
-      <InformationRequirementPath d={path} className={`kie-dmn-editor--edge ${className}`} />
+      <InformationRequirementPath
+        d={path}
+        className={`kie-dmn-editor--edge ${className}`}
+        diffStrokeColor={diffStyle.strokeColor}
+        diffStrokeWidth={diffStyle.strokeWidth}
+      />
 
       {!settings.isReadOnly && props.selected && !isConnecting && props.data?.dmnEdge && (
         <Waypoints
@@ -200,6 +236,9 @@ export const KnowledgeRequirementEdge = React.memo((props: RF.EdgeProps<DmnDiagr
   const isConnecting = !!RF.useStore((s) => s.connectionNodeId);
   const className = useEdgeClassName(isConnecting, isDraggingWaypoint);
 
+  const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByEdgeId?.get(props.id));
+  const diffStyle = React.useMemo(() => getDiffStyle(diffChangeType), [diffChangeType]);
+
   useAlwaysVisibleEdgeUpdatersAtNodeBorders(interactionPathRef, props.source, props.target, waypoints);
 
   return (
@@ -215,7 +254,12 @@ export const KnowledgeRequirementEdge = React.memo((props: RF.EdgeProps<DmnDiagr
         data-edgetype={"knowledge-requirement"}
         visibility={settings.isReadOnly ? "hidden" : undefined}
       />
-      <KnowledgeRequirementPath d={path} className={`kie-dmn-editor--edge ${className}`} />
+      <KnowledgeRequirementPath
+        d={path}
+        className={`kie-dmn-editor--edge ${className}`}
+        diffStrokeColor={diffStyle.strokeColor}
+        diffStrokeWidth={diffStyle.strokeWidth}
+      />
 
       {!settings.isReadOnly && props.selected && !isConnecting && props.data?.dmnEdge && (
         <Waypoints
@@ -251,6 +295,9 @@ export const AuthorityRequirementEdge = React.memo((props: RF.EdgeProps<DmnDiagr
   const isConnecting = !!RF.useStore((s) => s.connectionNodeId);
   const className = useEdgeClassName(isConnecting, isDraggingWaypoint);
 
+  const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByEdgeId?.get(props.id));
+  const diffStyle = React.useMemo(() => getDiffStyle(diffChangeType), [diffChangeType]);
+
   useAlwaysVisibleEdgeUpdatersAtNodeBorders(interactionPathRef, props.source, props.target, waypoints);
 
   return (
@@ -271,6 +318,8 @@ export const AuthorityRequirementEdge = React.memo((props: RF.EdgeProps<DmnDiagr
         d={path}
         className={`kie-dmn-editor--edge ${className}`}
         centerToConnectionPoint={false}
+        diffStrokeColor={diffStyle.strokeColor}
+        diffStrokeWidth={diffStyle.strokeWidth}
       />
 
       {!settings.isReadOnly && props.selected && !isConnecting && props.data?.dmnEdge && (
@@ -307,6 +356,9 @@ export const AssociationEdge = React.memo((props: RF.EdgeProps<DmnDiagramEdgeDat
   const isConnecting = !!RF.useStore((s) => s.connectionNodeId);
   const className = useEdgeClassName(isConnecting, isDraggingWaypoint);
 
+  const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByEdgeId?.get(props.id));
+  const diffStyle = React.useMemo(() => getDiffStyle(diffChangeType), [diffChangeType]);
+
   useAlwaysVisibleEdgeUpdatersAtNodeBorders(interactionPathRef, props.source, props.target, waypoints);
 
   return (
@@ -322,7 +374,12 @@ export const AssociationEdge = React.memo((props: RF.EdgeProps<DmnDiagramEdgeDat
         data-edgetype={"association"}
         visibility={settings.isReadOnly ? "hidden" : undefined}
       />
-      <AssociationPath d={path} className={`kie-dmn-editor--edge ${className}`} />
+      <AssociationPath
+        d={path}
+        className={`kie-dmn-editor--edge ${className}`}
+        diffStrokeColor={diffStyle.strokeColor}
+        diffStrokeWidth={diffStyle.strokeWidth}
+      />
 
       {!settings.isReadOnly && props.selected && !isConnecting && props.data?.dmnEdge && (
         <Waypoints

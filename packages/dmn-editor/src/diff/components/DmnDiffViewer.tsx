@@ -37,6 +37,7 @@ import { CommandsContextProvider } from "../../commands/CommandsContextProvider"
 import { Viewport } from "reactflow";
 import { DmnDiffChangeList } from "./DmnDiffChangeList";
 import { parseXmlHref, buildXmlHref } from "@kie-tools/dmn-marshaller/dist/xml";
+import { DiffResult, DiffChangeType, DmnDiffFileVersion } from "../types";
 
 interface DiagramViewerProps {
   readonly label: string;
@@ -44,6 +45,8 @@ interface DiagramViewerProps {
   readonly diagramRef: React.RefObject<DiagramRef>;
   readonly sharedViewport: Viewport;
   readonly onViewportChange: (viewport: Viewport) => void;
+  readonly diffResult: DiffResult | null;
+  readonly version: DmnDiffFileVersion;
 }
 
 const VIEWPORT_EPSILONS = { x: 0.1, y: 0.1, zoom: 0.001 };
@@ -67,6 +70,8 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
   diagramRef,
   sharedViewport,
   onViewportChange,
+  diffResult,
+  version,
 }) => {
   const store = useMemo(
     () => createDmnEditorStore(model, new ComputedStateCache<Computed>(INITIAL_COMPUTED_CACHE)),
@@ -84,6 +89,73 @@ const DiagramViewer: React.FC<DiagramViewerProps> = ({
       state.dmn.model = model;
     });
   }, [model, store]);
+
+  // Memoize the creation of diffsByNodeId and diffsByEdgeId Maps
+  const diffsByNodeId = useMemo(() => {
+    const map = new Map();
+    const isVersionA = version === DmnDiffFileVersion.VERSION_A;
+    const isVersionB = version === DmnDiffFileVersion.VERSION_B;
+
+    if (diffResult) {
+      for (const nodeDiff of diffResult.nodes) {
+        const parsed = parseXmlHref(nodeDiff.id);
+        const namespace = model.definitions["@_namespace"];
+        const normalizedId =
+          !parsed.namespace || parsed.namespace === namespace
+            ? buildXmlHref({ id: parsed.id })
+            : buildXmlHref({ namespace: parsed.namespace, id: parsed.id });
+
+        const isRemovedOrModified =
+          nodeDiff.changeType === DiffChangeType.REMOVED || nodeDiff.changeType === DiffChangeType.MODIFIED;
+        const isAddedOrModified =
+          nodeDiff.changeType === DiffChangeType.ADDED || nodeDiff.changeType === DiffChangeType.MODIFIED;
+
+        if ((isVersionA && isRemovedOrModified) || (isVersionB && isAddedOrModified)) {
+          map.set(normalizedId, nodeDiff.changeType);
+        }
+      }
+    }
+    return map;
+  }, [diffResult, version, model]);
+
+  const diffsByEdgeId = useMemo(() => {
+    const map = new Map();
+    const isVersionA = version === DmnDiffFileVersion.VERSION_A;
+    const isVersionB = version === DmnDiffFileVersion.VERSION_B;
+
+    if (diffResult) {
+      for (const edgeDiff of diffResult.edges) {
+        const parsed = parseXmlHref(edgeDiff.id);
+        const namespace = model.definitions["@_namespace"];
+        const normalizedId =
+          !parsed.namespace || parsed.namespace === namespace
+            ? parsed.id ?? edgeDiff.id
+            : buildXmlHref({ namespace: parsed.namespace, id: parsed.id });
+
+        if (!normalizedId) {
+          continue;
+        }
+
+        const isRemovedOrModified =
+          edgeDiff.changeType === DiffChangeType.REMOVED || edgeDiff.changeType === DiffChangeType.MODIFIED;
+        const isAddedOrModified =
+          edgeDiff.changeType === DiffChangeType.ADDED || edgeDiff.changeType === DiffChangeType.MODIFIED;
+
+        if ((isVersionA && isRemovedOrModified) || (isVersionB && isAddedOrModified)) {
+          map.set(normalizedId, edgeDiff.changeType);
+        }
+      }
+    }
+    return map;
+  }, [diffResult, version, model]);
+
+  useEffect(() => {
+    storeRef.current.setState((state) => {
+      state.diagram.overlays.enableDiffHighlights = !!diffResult;
+      state.diagram.diffsByNodeId = diffsByNodeId;
+      state.diagram.diffsByEdgeId = diffsByEdgeId;
+    });
+  }, [diffResult, diffsByNodeId, diffsByEdgeId]);
 
   useEffect(() => {
     let previousViewport = storeRef.current.getState().diagram.viewport;
@@ -256,8 +328,12 @@ export const DmnDiffViewer: React.FC = () => {
 
       focusOnElement(diagramARef, namespaceA);
       focusOnElement(diagramBRef, namespaceB);
+
+      if (isChangeListOpen) {
+        toggleChangeList();
+      }
     },
-    [versionA, versionB]
+    [versionA, versionB, isChangeListOpen, toggleChangeList]
   );
 
   return (
@@ -270,6 +346,8 @@ export const DmnDiffViewer: React.FC = () => {
             diagramRef={diagramARef}
             sharedViewport={sharedViewport}
             onViewportChange={handleViewportChange}
+            diffResult={diffResult}
+            version={DmnDiffFileVersion.VERSION_A}
           />
         ) : (
           <EmptyPanel label="Version A" />
@@ -281,6 +359,8 @@ export const DmnDiffViewer: React.FC = () => {
             diagramRef={diagramBRef}
             sharedViewport={sharedViewport}
             onViewportChange={handleViewportChange}
+            diffResult={diffResult}
+            version={DmnDiffFileVersion.VERSION_B}
           />
         ) : (
           <EmptyPanel label="Version B" />

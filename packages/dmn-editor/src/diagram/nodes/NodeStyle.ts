@@ -23,6 +23,8 @@ import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normali
 import { NodeType } from "../connections/graphStructure";
 import { NODE_TYPES } from "./NodeTypes";
 import { NodeLabelPosition } from "./NodeSvgs";
+import { getDiffStyle } from "../../diff/styles/diffHighlightStyles";
+import { DiffChangeType } from "../../diff/types";
 
 export interface NodeStyle {
   fontCssProperties: React.CSSProperties;
@@ -66,15 +68,18 @@ export function useNodeStyle(args: {
   dmnStyle?: Normalized<DMNDI15__DMNStyle>;
   nodeType?: NodeType;
   isEnabled?: boolean;
+  diffChangeType?: DiffChangeType;
 }): NodeStyle {
+  const diffStyle = useMemo(() => getDiffStyle(args.diffChangeType), [args.diffChangeType]);
+
   const fillColor = useMemo(
     () => getNodeShapeFillColor({ dmnStyle: args.dmnStyle, nodeType: args.nodeType, isEnabled: args.isEnabled }),
     [args.dmnStyle, args.isEnabled, args.nodeType]
   );
 
   const strokeColor = useMemo(
-    () => getNodeShapeStrokeColor({ dmnStyle: args.dmnStyle, isEnabled: args.isEnabled }),
-    [args.dmnStyle, args.isEnabled]
+    () => diffStyle.strokeColor ?? getNodeShapeStrokeColor({ dmnStyle: args.dmnStyle, isEnabled: args.isEnabled }),
+    [args.dmnStyle, args.isEnabled, diffStyle.strokeColor]
   );
 
   const dmnFontStyle = useMemo(
@@ -88,8 +93,9 @@ export function useNodeStyle(args: {
         fillColor,
         strokeColor,
         dmnFontStyle,
+        strokeWidth: diffStyle.strokeWidth,
       }),
-    [fillColor, dmnFontStyle, strokeColor]
+    [fillColor, dmnFontStyle, strokeColor, diffStyle.strokeWidth]
   );
 }
 
@@ -97,17 +103,19 @@ export function getNodeStyle({
   fillColor,
   strokeColor,
   dmnFontStyle,
+  strokeWidth,
 }: {
   fillColor: string;
   strokeColor: string;
   dmnFontStyle: DmnFontStyle;
+  strokeWidth?: number;
 }): NodeStyle {
   return {
     fontCssProperties: getFontCssProperties(dmnFontStyle),
     shapeStyle: {
       fillColor,
       strokeColor,
-      strokeWidth: DEFAULT_NODE_STROKE_WIDTH,
+      strokeWidth: strokeWidth ?? DEFAULT_NODE_STROKE_WIDTH,
     },
   };
 }

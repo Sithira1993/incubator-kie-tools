@@ -169,10 +169,13 @@ export const InputDataNode = React.memo(
 
     const onCreateDataType = useDataTypeCreationCallbackForNodes(index, inputData["@_name"]);
 
+    const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByNodeId?.get(id));
+
     const { fontCssProperties, shapeStyle } = useNodeStyle({
       dmnStyle: shape["di:Style"],
       nodeType: type as NodeType,
       isEnabled: enableCustomNodeStyles,
+      diffChangeType,
     });
 
     const isCollection = useDmnEditorStore((s) => {
@@ -392,10 +395,13 @@ export const DecisionNode = React.memo(
 
     const onCreateDataType = useDataTypeCreationCallbackForNodes(index, decision["@_name"]);
 
+    const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByNodeId?.get(id));
+
     const { fontCssProperties, shapeStyle } = useNodeStyle({
       dmnStyle: shape["di:Style"],
       nodeType: type as NodeType,
       isEnabled: enableCustomNodeStyles,
+      diffChangeType,
     });
 
     const isCollection = useDmnEditorStore((s) => {
@@ -552,10 +558,13 @@ export const BkmNode = React.memo(
 
     const onCreateDataType = useDataTypeCreationCallbackForNodes(index, bkm["@_name"]);
 
+    const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByNodeId?.get(id));
+
     const { fontCssProperties, shapeStyle } = useNodeStyle({
       dmnStyle: shape["di:Style"],
       nodeType: type as NodeType,
       isEnabled: enableCustomNodeStyles,
+      diffChangeType,
     });
 
     const isSingleNodeSelected = useDmnEditorStore((s) => s.diagram._selectedNodes.length === 1);
@@ -676,10 +685,13 @@ export const KnowledgeSourceNode = React.memo(
 
     const getAllFeelVariableUniqueNames = useCallback((s: State) => s.computed(s).getAllFeelVariableUniqueNames(), []);
 
+    const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByNodeId?.get(id));
+
     const { fontCssProperties, shapeStyle } = useNodeStyle({
       dmnStyle: shape["di:Style"],
       nodeType: type as NodeType,
       isEnabled: enableCustomNodeStyles,
+      diffChangeType,
     });
 
     const isSingleNodeSelected = useDmnEditorStore((s) => s.diagram._selectedNodes.length === 1);
@@ -793,10 +805,13 @@ export const TextAnnotationNode = React.memo(
 
     const getAllFeelVariableUniqueNames = useCallback((s: State) => s.computed(s).getAllFeelVariableUniqueNames(), []);
 
+    const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByNodeId?.get(id));
+
     const { fontCssProperties, shapeStyle } = useNodeStyle({
       dmnStyle: shape["di:Style"],
       nodeType: type as NodeType,
       isEnabled: enableCustomNodeStyles,
+      diffChangeType,
     });
 
     const isSingleNodeSelected = useDmnEditorStore((s) => s.diagram._selectedNodes.length === 1);
@@ -1209,10 +1224,13 @@ export const DecisionServiceNode = React.memo(
       isCollapsed,
     ]);
 
+    const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByNodeId?.get(id));
+
     const { fontCssProperties, shapeStyle } = useNodeStyle({
       dmnStyle: shape["di:Style"],
       nodeType: type as NodeType,
       isEnabled: enableCustomNodeStyles,
+      diffChangeType,
     });
 
     return (
@@ -1372,10 +1390,13 @@ export const GroupNode = React.memo(
       };
     }, [dmnEditorStoreApi, reactFlow, shape]);
 
+    const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByNodeId?.get(id));
+
     const { fontCssProperties, shapeStyle } = useNodeStyle({
       dmnStyle: shape["di:Style"],
       nodeType: type as NodeType,
       isEnabled: enableCustomNodeStyles,
+      diffChangeType,
     });
 
     return (
