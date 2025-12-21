@@ -21,6 +21,8 @@ import * as React from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import "@patternfly/react-core/dist/styles/base.css";
 import { DmnDiffSideBySideView } from "../../../src/diff/DmnDiffSideBySideView";
+import "reactflow/dist/style.css";
+import "../../../src/DmnEditor.css";
 
 const meta: Meta = {
   title: "Misc/DMN Diff",
