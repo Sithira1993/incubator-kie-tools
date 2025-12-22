@@ -75,6 +75,11 @@ export interface State {
   dispatch: (s: State) => Dispatch;
   computed: (s: State) => Computed;
   dmn: { model: Normalized<DmnLatestModel> };
+  diff: {
+    isDiffModeEnabled: boolean;
+    baseModel: Normalized<DmnLatestModel> | undefined;
+    deletedNodeIds: Set<string>;
+  };
   focus: {
     consumableId: string | undefined;
   };
@@ -249,6 +254,11 @@ export const defaultStaticState = (): Omit<State, "dmn" | "dispatch" | "computed
     isEditingStyle: false,
     viewport: DEFAULT_VIEWPORT,
   },
+  diff: {
+    isDiffModeEnabled: false,
+    baseModel: undefined,
+    deletedNodeIds: new Set(),
+  },
 });
 
 export function createDmnEditorStore(model: DmnLatestModel, computedCache: ComputedStateCache<Computed>) {
@@ -259,6 +269,11 @@ export function createDmnEditorStore(model: DmnLatestModel, computedCache: Compu
         model: normalize(model),
       },
       ...defaultState,
+      diff: {
+        isDiffModeEnabled: false,
+        baseModel: undefined,
+        deletedNodeIds: new Set(),
+      },
       diagram: {
         ...diagram,
         // A model without DRD and with DRG element can be auto generated
@@ -271,7 +286,8 @@ export function createDmnEditorStore(model: DmnLatestModel, computedCache: Compu
       dispatch(s: State) {
         return {
           dmn: {
-            reset: () => {
+            reset: (model) => {
+              s.dmn.model = model;
               s.diagram._selectedNodes = [];
               s.diagram.draggingNodes = [];
               s.diagram.resizingNodes = [];

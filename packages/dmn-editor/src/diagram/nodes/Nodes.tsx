@@ -234,6 +234,7 @@ export const InputDataNode = React.memo(
               strokeWidth={shapeStyle.strokeWidth}
               fillColor={shapeStyle.fillColor}
               strokeColor={shapeStyle.strokeColor}
+              strokeDasharray={shapeStyle.strokeDasharray}
               isIcon={false}
             />
           ) : (
@@ -245,6 +246,7 @@ export const InputDataNode = React.memo(
               strokeWidth={shapeStyle.strokeWidth}
               fillColor={shapeStyle.fillColor}
               strokeColor={shapeStyle.strokeColor}
+              strokeDasharray={shapeStyle.strokeDasharray}
             />
           )}
         </svg>
@@ -444,6 +446,7 @@ export const DecisionNode = React.memo(
             strokeWidth={parentRfNode ? 3 : shapeStyle.strokeWidth}
             fillColor={shapeStyle.fillColor}
             strokeColor={shapeStyle.strokeColor}
+            strokeDasharray={shapeStyle.strokeDasharray}
             hasHiddenRequirements={hasHiddenRequirements}
           />
         </svg>
@@ -584,6 +587,7 @@ export const BkmNode = React.memo(
             strokeWidth={shapeStyle.strokeWidth}
             fillColor={shapeStyle.fillColor}
             strokeColor={shapeStyle.strokeColor}
+            strokeDasharray={shapeStyle.strokeDasharray}
             hasHiddenRequirements={hasHiddenRequirements}
           />
         </svg>
@@ -711,6 +715,7 @@ export const KnowledgeSourceNode = React.memo(
             strokeWidth={shapeStyle.strokeWidth}
             fillColor={shapeStyle.fillColor}
             strokeColor={shapeStyle.strokeColor}
+            strokeDasharray={shapeStyle.strokeDasharray}
             hasHiddenRequirements={hasHiddenRequirements}
           />
         </svg>
@@ -1246,6 +1251,7 @@ export const DecisionServiceNode = React.memo(
             strokeWidth={3}
             fillColor={shapeStyle.fillColor}
             strokeColor={shapeStyle.strokeColor}
+            strokeDasharray={shapeStyle.strokeDasharray}
             isReadOnly={settings.isReadOnly}
             isCollapsed={isCollapsed}
             showSectionLabels={isDropTarget}
@@ -1410,6 +1416,7 @@ export const GroupNode = React.memo(
             strokeWidth={3}
             fillColor={shapeStyle.fillColor}
             strokeColor={shapeStyle.strokeColor}
+            strokeDasharray={shapeStyle.strokeDasharray}
           />
         </svg>
         <PositionalNodeHandles isTargeted={isTargeted && isValidConnectionTarget} nodeId={id} />

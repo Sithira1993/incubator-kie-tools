@@ -35,6 +35,7 @@ export interface ShapeStyle {
   fillColor: string;
   strokeColor: string;
   strokeWidth: number;
+  strokeDasharray?: string;
 }
 
 export interface DmnFontStyle {
@@ -94,8 +95,9 @@ export function useNodeStyle(args: {
         strokeColor,
         dmnFontStyle,
         strokeWidth: diffStyle.strokeWidth,
+        strokeDasharray: diffStyle.strokeDasharray,
       }),
-    [fillColor, dmnFontStyle, strokeColor, diffStyle.strokeWidth]
+    [fillColor, dmnFontStyle, strokeColor, diffStyle.strokeWidth, diffStyle.strokeDasharray]
   );
 }
 
@@ -104,11 +106,13 @@ export function getNodeStyle({
   strokeColor,
   dmnFontStyle,
   strokeWidth,
+  strokeDasharray,
 }: {
   fillColor: string;
   strokeColor: string;
   dmnFontStyle: DmnFontStyle;
   strokeWidth?: number;
+  strokeDasharray?: string;
 }): NodeStyle {
   return {
     fontCssProperties: getFontCssProperties(dmnFontStyle),
@@ -116,6 +120,7 @@ export function getNodeStyle({
       fillColor,
       strokeColor,
       strokeWidth: strokeWidth ?? DEFAULT_NODE_STROKE_WIDTH,
+      strokeDasharray,
     },
   };
 }

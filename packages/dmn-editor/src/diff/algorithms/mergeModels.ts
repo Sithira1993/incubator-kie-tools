@@ -17,10 +17,23 @@
  * under the License.
  */
 
-import { DmnLatestModel } from "@kie-tools/dmn-marshaller";
+import {
+  DmnLatestModel,
+  DMN_LATEST__DMNShape,
+  DMN_LATEST__DMNEdge,
+  DMN_LATEST__tInformationRequirement,
+  DMN_LATEST__tKnowledgeRequirement,
+  DMN_LATEST__tAuthorityRequirement,
+} from "@kie-tools/dmn-marshaller";
 import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
 import { DiffChangeType, DiffResult } from "../types";
 import { parseXmlHref } from "@kie-tools/dmn-marshaller/dist/xml";
+
+interface WithRequirements {
+  informationRequirement?: Normalized<DMN_LATEST__tInformationRequirement>[];
+  knowledgeRequirement?: Normalized<DMN_LATEST__tKnowledgeRequirement>[];
+  authorityRequirement?: Normalized<DMN_LATEST__tAuthorityRequirement>[];
+}
 
 export function mergeModels(
   baseModel: Normalized<DmnLatestModel>,
@@ -28,12 +41,12 @@ export function mergeModels(
   diffResult: DiffResult
 ): Normalized<DmnLatestModel> {
   // Deep copy changedModel to avoid mutating the original
-  const mergedModel = JSON.parse(JSON.stringify(changedModel)) as Normalized<DmnLatestModel>;
+  const mergedModel = structuredClone(changedModel) as Normalized<DmnLatestModel>;
 
   const baseDefinitions = baseModel.definitions;
   const mergedDefinitions = mergedModel.definitions;
 
-  // 1. Inject Removed Nodes (Ghost Nodes)
+  // 1. Inject Removed Nodes
   for (const nodeDiff of diffResult.nodes) {
     if (nodeDiff.changeType === DiffChangeType.REMOVED) {
       const parsed = parseXmlHref(nodeDiff.id);
@@ -45,10 +58,10 @@ export function mergeModels(
       // Inject Node
       if (baseNode) {
         mergedDefinitions.drgElement ??= [];
-        mergedDefinitions.drgElement.push(JSON.parse(JSON.stringify(baseNode))); // Copy to avoid ref issues
+        mergedDefinitions.drgElement.push(structuredClone(baseNode)); // Copy to avoid ref issues
       } else if (baseArtifact) {
         mergedDefinitions.artifact ??= [];
-        mergedDefinitions.artifact.push(JSON.parse(JSON.stringify(baseArtifact)));
+        mergedDefinitions.artifact.push(structuredClone(baseArtifact));
       }
 
       // Inject Shape
@@ -57,12 +70,12 @@ export function mergeModels(
       );
 
       if (baseShape) {
-        injectShape(mergedDefinitions, baseShape);
+        injectShape(mergedDefinitions, baseShape as Normalized<DMN_LATEST__DMNShape>);
       }
     }
   }
 
-  // 1.5. Inject Removed Edges (Ghost Edges)
+  // 1.5. Inject Removed Edges
   for (const edgeDiff of diffResult.edges) {
     if (edgeDiff.changeType === DiffChangeType.REMOVED) {
       const parsed = parseXmlHref(edgeDiff.id);
@@ -72,54 +85,20 @@ export function mergeModels(
       const baseAssociation = baseDefinitions.artifact?.find((el) => el["@_id"] === edgeId);
       if (baseAssociation?.__$$element === "association") {
         mergedDefinitions.artifact ??= [];
-        mergedDefinitions.artifact.push(JSON.parse(JSON.stringify(baseAssociation)));
+        mergedDefinitions.artifact.push(structuredClone(baseAssociation));
       }
 
       // 1.5.2. Requirements
       for (const baseDrgElement of baseDefinitions.drgElement ?? []) {
         const mergedDrgElement = mergedDefinitions.drgElement?.find((el) => el["@_id"] === baseDrgElement["@_id"]);
+        // Should not happen if deleted nodes are injected correctly
         if (!mergedDrgElement) {
-          continue; // Should not happen if ghost nodes are injected correctly
+          continue;
         }
 
-        // Information Requirement
-        if (baseDrgElement.__$$element === "decision") {
-          const infoReq = baseDrgElement.informationRequirement?.find((req) => req["@_id"] === edgeId);
-          if (infoReq && mergedDrgElement.__$$element === "decision") {
-            mergedDrgElement.informationRequirement ??= [];
-            mergedDrgElement.informationRequirement.push(JSON.parse(JSON.stringify(infoReq)));
-          }
-        }
-
-        // Knowledge Requirement
-        if (baseDrgElement.__$$element === "decision" || baseDrgElement.__$$element === "businessKnowledgeModel") {
-          const knowReq = baseDrgElement.knowledgeRequirement?.find((req) => req["@_id"] === edgeId);
-          if (
-            knowReq &&
-            (mergedDrgElement.__$$element === "decision" || mergedDrgElement.__$$element === "businessKnowledgeModel")
-          ) {
-            mergedDrgElement.knowledgeRequirement ??= [];
-            mergedDrgElement.knowledgeRequirement.push(JSON.parse(JSON.stringify(knowReq)));
-          }
-        }
-
-        // Authority Requirement
-        if (
-          baseDrgElement.__$$element === "decision" ||
-          baseDrgElement.__$$element === "businessKnowledgeModel" ||
-          baseDrgElement.__$$element === "knowledgeSource"
-        ) {
-          const authReq = baseDrgElement.authorityRequirement?.find((req) => req["@_id"] === edgeId);
-          if (
-            authReq &&
-            (mergedDrgElement.__$$element === "decision" ||
-              mergedDrgElement.__$$element === "businessKnowledgeModel" ||
-              mergedDrgElement.__$$element === "knowledgeSource")
-          ) {
-            mergedDrgElement.authorityRequirement ??= [];
-            mergedDrgElement.authorityRequirement.push(JSON.parse(JSON.stringify(authReq)));
-          }
-        }
+        injectRequirement(baseDrgElement, mergedDrgElement, "informationRequirement", edgeId);
+        injectRequirement(baseDrgElement, mergedDrgElement, "knowledgeRequirement", edgeId);
+        injectRequirement(baseDrgElement, mergedDrgElement, "authorityRequirement", edgeId);
       }
 
       // 1.5.3. Inject DMNDI Edge
@@ -128,7 +107,7 @@ export function mergeModels(
       );
 
       if (baseEdge) {
-        injectShape(mergedDefinitions, baseEdge);
+        injectShape(mergedDefinitions, baseEdge as Normalized<DMN_LATEST__DMNEdge>);
       }
     }
   }
@@ -136,7 +115,38 @@ export function mergeModels(
   return mergedModel;
 }
 
-function injectShape(definitions: Normalized<DmnLatestModel>["definitions"], shape: any) {
+function injectRequirement<K extends keyof WithRequirements>(
+  baseDrgElement: unknown,
+  mergedDrgElement: unknown,
+  reqProp: K,
+  edgeId: string
+) {
+  const baseElementTyped = baseDrgElement as WithRequirements;
+  const baseReqs = baseElementTyped[reqProp];
+
+  if (Array.isArray(baseReqs)) {
+    // Inferred type of req matching K
+    const reqToInject = baseReqs.find((req) => req["@_id"] === edgeId);
+    if (reqToInject) {
+      const mergedElementTyped = mergedDrgElement as WithRequirements;
+      if (!mergedElementTyped[reqProp]) {
+        // Safe cast to initialize array of specific type
+        mergedElementTyped[reqProp] = [] as WithRequirements[K];
+      }
+
+      const exists = (mergedElementTyped[reqProp] as any[]).some((req) => req["@_id"] === edgeId);
+      if (!exists) {
+        // Cast to any because K is a union and TS can't verify exact match between source and destination arrays
+        mergedElementTyped[reqProp]!.push(structuredClone(reqToInject) as any);
+      }
+    }
+  }
+}
+
+function injectShape(
+  definitions: Normalized<DmnLatestModel>["definitions"],
+  shape: Normalized<DMN_LATEST__DMNShape | DMN_LATEST__DMNEdge>
+) {
   definitions["dmndi:DMNDI"] ??= {};
   definitions["dmndi:DMNDI"]["dmndi:DMNDiagram"] ??= [];
   if (definitions["dmndi:DMNDI"]["dmndi:DMNDiagram"].length === 0) {
@@ -144,5 +154,5 @@ function injectShape(definitions: Normalized<DmnLatestModel>["definitions"], sha
   }
   const diagram = definitions["dmndi:DMNDI"]["dmndi:DMNDiagram"][0];
   diagram["dmndi:DMNDiagramElement"] ??= [];
-  diagram["dmndi:DMNDiagramElement"].push(JSON.parse(JSON.stringify(shape)));
+  diagram["dmndi:DMNDiagramElement"].push(structuredClone(shape) as any);
 }

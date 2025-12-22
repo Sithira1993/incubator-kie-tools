@@ -29,6 +29,7 @@ export type NodeSvgProps = RF.Dimensions &
     fillColor?: string;
     strokeColor?: string;
     strokeWidth?: number;
+    strokeDasharray?: string;
   };
 
 export const ___NASTY_HACK_FOR_SAFARI_to_force_redrawing_svgs_and_avoid_repaint_glitches = { flag: false };
