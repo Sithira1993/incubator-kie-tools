@@ -1,74 +1,44 @@
 import { mergeModels } from "../../src/diff/algorithms/mergeModels";
 import { DiffChangeType, DiffResult } from "../../src/diff/types";
-import { DmnLatestModel } from "@kie-tools/dmn-marshaller";
-import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
+import { createEmptyModel, addDecision, TEST_NAMESPACE } from "./utils";
 
 describe("mergeModels", () => {
-  const baseModel: Normalized<DmnLatestModel> = {
-    definitions: {
-      "@_namespace": "https://kie.org/dmn/_base",
-      "@_name": "BaseModel",
-      "@_id": "_base",
-      drgElement: [
-        {
-          __$$element: "decision",
-          "@_id": "node_a",
-          "@_name": "Node A",
-        } as any,
-        {
-          __$$element: "decision",
-          "@_id": "node_b", // This one will be deleted
-          "@_name": "Node B",
-          informationRequirement: [{ "@_id": "edge_b", requiredInput: { "@_href": "#node_a" } }],
-        } as any,
-      ],
-      "dmndi:DMNDI": {
-        "dmndi:DMNDiagram": [
-          {
-            "dmndi:DMNDiagramElement": [{ "@_dmnElementRef": "node_a" }, { "@_dmnElementRef": "node_b" }],
-          },
-        ],
-      },
-    },
-  } as any;
+  let baseModel = createEmptyModel();
+  let changedModel = createEmptyModel();
 
-  const changedModel: Normalized<DmnLatestModel> = {
-    definitions: {
-      "@_namespace": "https://kie.org/dmn/_base", // Same namespace
-      "@_name": "BaseModel",
-      "@_id": "_base",
-      drgElement: [
-        {
-          __$$element: "decision",
-          "@_id": "node_a",
-          "@_name": "Node A Modified",
-        } as any,
-        // Node B is missing
-      ],
-      "dmndi:DMNDI": {
-        "dmndi:DMNDiagram": [
-          {
-            "dmndi:DMNDiagramElement": [{ "@_dmnElementRef": "node_a" }],
-          },
-        ],
-      },
-    },
-  } as any;
+  beforeEach(() => {
+    // Reset models for each test
+    baseModel = createEmptyModel();
+    // Base: decide node_a & node_b
+    addDecision(baseModel, { id: "node_a", name: "Node A" });
+    addDecision(baseModel, {
+      id: "node_b",
+      name: "Node B",
+      informationRequirements: [{ id: "edge_b", requiredInputId: "node_a" }],
+    });
 
-  it("should inject deleted nodes back into the merged model", () => {
+    changedModel = createEmptyModel();
+    // Changed: node_a modified, node_b removed
+    addDecision(changedModel, { id: "node_a", name: "Node A Modified" });
+  });
+
+  const NS = TEST_NAMESPACE;
+
+  it("should restore deleted nodes from base model into merged model", () => {
     const diffResult: DiffResult = {
       nodes: [
-        { id: "node_b", changeType: DiffChangeType.REMOVED, kind: "node", elementType: "decision" },
-        { id: "node_a", changeType: DiffChangeType.MODIFIED, kind: "node", elementType: "decision" },
+        { id: `${NS}#node_b`, changeType: DiffChangeType.REMOVED, kind: "node", elementType: "decision" },
+        { id: `${NS}#node_a`, changeType: DiffChangeType.MODIFIED, kind: "node", elementType: "decision" },
       ],
       edges: [
-        { id: "edge_b", changeType: DiffChangeType.REMOVED, kind: "edge", elementType: "informationRequirement" },
+        { id: `${NS}#edge_b`, changeType: DiffChangeType.REMOVED, kind: "edge", elementType: "informationRequirement" },
       ],
       hasChanges: true,
     };
 
     const merged = mergeModels(baseModel, changedModel, diffResult);
 
+    // node_a (modified) + node_b (restored)
     expect(merged.definitions.drgElement?.length).toBe(2);
 
     const nodeA = merged.definitions.drgElement?.find((n) => n["@_id"] === "node_a");
@@ -77,13 +47,14 @@ describe("mergeModels", () => {
 
     const nodeB = merged.definitions.drgElement?.find((n) => n["@_id"] === "node_b");
     expect(nodeB).toBeDefined();
-    expect(nodeB!["@_name"]).toBe("Node B"); // Should be restored from base matches
+    expect(nodeB!["@_name"]).toBe("Node B");
     expect((nodeB as any).informationRequirement).toHaveLength(1);
+    expect((nodeB as any).informationRequirement[0]["@_id"]).toBe("edge_b");
   });
 
-  it("should inject deleted shapes back into the merged model", () => {
+  it("should restore deleted shapes from base model DMNDI into merged model", () => {
     const diffResult: DiffResult = {
-      nodes: [{ id: "node_b", changeType: DiffChangeType.REMOVED, kind: "node", elementType: "decision" }],
+      nodes: [{ id: `${NS}#node_b`, changeType: DiffChangeType.REMOVED, kind: "node", elementType: "decision" }],
       edges: [],
       hasChanges: true,
     };

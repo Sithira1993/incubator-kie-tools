@@ -17,12 +17,9 @@
  * under the License.
  */
 
-import { DMN_LATEST__DMNShape, DmnLatestModel } from "@kie-tools/dmn-marshaller";
-import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
+import { createEmptyModel, addInputData, addDecision, TEST_NAMESPACE } from "./utils";
 import { computeDmnDiff } from "../../src/diff/algorithms/dmnDiffAlgorithm";
 import { DiffChangeType } from "../../src/diff/types";
-
-const TEST_NAMESPACE = "https://kie.tools/test";
 
 describe("DMN diff algorithm", () => {
   it("returns no diffs for empty diagrams", () => {
@@ -166,112 +163,3 @@ describe("DMN diff algorithm", () => {
     );
   });
 });
-
-function createEmptyModel(): Normalized<DmnLatestModel> {
-  return {
-    definitions: {
-      "@_id": "definitions",
-      "@_name": "Test",
-      "@_namespace": TEST_NAMESPACE,
-      drgElement: [],
-      artifact: [],
-      "dmndi:DMNDI": {
-        "dmndi:DMNDiagram": [
-          {
-            "@_id": "diagram",
-            "dmndi:DMNDiagramElement": [],
-          },
-        ],
-      },
-    },
-  } as unknown as Normalized<DmnLatestModel>;
-}
-
-function addInputData(
-  model: Normalized<DmnLatestModel>,
-  {
-    id,
-    name,
-    x = 10,
-    y = 20,
-    width = 160,
-    height = 80,
-  }: { id: string; name: string; x?: number; y?: number; width?: number; height?: number }
-) {
-  model.definitions.drgElement?.push({
-    __$$element: "inputData",
-    "@_id": id,
-    "@_name": name,
-  });
-
-  diagramElements(model).push(createShape(id, { x, y, width, height }));
-}
-
-function addDecision(
-  model: Normalized<DmnLatestModel>,
-  {
-    id,
-    name,
-    informationRequirements = [],
-  }: {
-    id: string;
-    name: string;
-    informationRequirements?: Array<{ id: string; requiredInputId: string }>;
-  }
-) {
-  model.definitions.drgElement?.push({
-    __$$element: "decision",
-    "@_id": id,
-    "@_name": name,
-    informationRequirement: informationRequirements.map((req) => ({
-      __$$element: "informationRequirement",
-      "@_id": req.id,
-      requiredInput: { "@_href": `#${req.requiredInputId}` },
-    })),
-  });
-
-  diagramElements(model).push(createShape(id, { x: 300, y: 200 }));
-}
-
-function diagramElements(model: Normalized<DmnLatestModel>) {
-  if (!model.definitions["dmndi:DMNDI"]) {
-    model.definitions["dmndi:DMNDI"] = {
-      "dmndi:DMNDiagram": [
-        {
-          "@_id": "diagram",
-          "dmndi:DMNDiagramElement": [],
-        },
-      ],
-    };
-  }
-
-  const dmndi = model.definitions["dmndi:DMNDI"]!;
-  dmndi["dmndi:DMNDiagram"] = dmndi["dmndi:DMNDiagram"] ?? [
-    {
-      "@_id": "diagram",
-      "dmndi:DMNDiagramElement": [],
-    },
-  ];
-
-  const diagram = dmndi["dmndi:DMNDiagram"][0]!;
-  diagram["dmndi:DMNDiagramElement"] = diagram["dmndi:DMNDiagramElement"] ?? [];
-
-  return diagram["dmndi:DMNDiagramElement"]!;
-}
-
-function createShape(
-  elementId: string,
-  { x = 0, y = 0, width = 160, height = 80 }: { x?: number; y?: number; width?: number; height?: number }
-): Normalized<DMN_LATEST__DMNShape> & { __$$element: "dmndi:DMNShape" } {
-  return {
-    __$$element: "dmndi:DMNShape",
-    "@_id": `${elementId}_shape`,
-    "@_dmnElementRef": elementId,
-    "dc:Bounds": {
-      "@_x": x,
-      "@_y": y,
-      "@_width": width,
-      "@_height": height,
-    },
-  } as unknown as Normalized<DMN_LATEST__DMNShape> & { __$$element: "dmndi:DMNShape" };
-}

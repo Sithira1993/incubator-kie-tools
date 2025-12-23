@@ -21,14 +21,8 @@ import { useDmnDiffController } from "../../src/diff/hooks/useDmnDiffController"
 import * as StoreContext from "../../src/store/StoreContext";
 import * as DmnMarshaller from "@kie-tools/dmn-marshaller";
 import { DiffChangeType } from "../../src/diff/types";
-import { normalize } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
+import { applyStateUpdates, setupMockStore } from "./utils";
 
-// Polyfill structuredClone if needed for tests
-if (typeof global.structuredClone !== "function") {
-  global.structuredClone = (obj: any) => JSON.parse(JSON.stringify(obj));
-}
-
-// Mocks
 jest.mock("react", () => ({
   useCallback: (fn: any) => fn,
   createContext: jest.fn(),
@@ -66,29 +60,18 @@ jest.mock("@kie-tools/dmn-marshaller/dist/xml", () => ({
 }));
 
 describe("useDmnDiffController", () => {
-  const setStateMock = jest.fn();
-  const getStateMock = jest.fn();
-  const dispatchResetMock = jest.fn();
-  const dispatchMock = jest.fn().mockReturnValue({
-    dmn: { reset: dispatchResetMock },
-  });
+  let storeMocks: ReturnType<typeof setupMockStore>;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (StoreContext.useDmnEditorStoreApi as jest.Mock).mockReturnValue({
-      setState: setStateMock,
-      getState: getStateMock,
-      dispatch: dispatchMock,
-      subscribe: jest.fn(),
-      destroy: jest.fn(),
-    });
+    storeMocks = setupMockStore(StoreContext);
 
-    (DmnMarshaller.getMarshaller as jest.Mock).mockReturnValue({
+    jest.mocked(DmnMarshaller.getMarshaller).mockReturnValue({
       parser: { parse: () => ({ definitions: { "@_namespace": "ns" } }) },
-    });
+    } as any);
   });
 
-  it("test openDiff", async () => {
+  it("should initialize diff mode and parse models when openDiff is called", async () => {
     const { openDiff } = useDmnDiffController();
     const computeDmnDiffMock = require("../../src/diff/algorithms/dmnDiffAlgorithm").computeDmnDiff;
     const mergeModelsMock = require("../../src/diff/algorithms/mergeModels").mergeModels;
@@ -99,7 +82,7 @@ describe("useDmnDiffController", () => {
     await openDiff("<xml>base</xml>", "<xml>changed</xml>");
 
     expect(DmnMarshaller.getMarshaller).toHaveBeenCalledTimes(2);
-    expect(setStateMock).toHaveBeenCalled();
+    expect(storeMocks.setStateMock).toHaveBeenCalled();
 
     // Simulate all setState calls
     const state = {
@@ -110,24 +93,19 @@ describe("useDmnDiffController", () => {
         diffsByEdgeId: new Map(),
       },
       dmn: { model: { definitions: {} }, reset: jest.fn() },
-      dispatch: dispatchMock,
+      dispatch: storeMocks.dispatchMock,
     };
 
-    for (const call of setStateMock.mock.calls) {
-      const updater = call[0];
-      if (typeof updater === "function") {
-        updater(state);
-      }
-    }
+    applyStateUpdates(storeMocks.setStateMock, state);
 
     expect(state.diff).toHaveProperty("isDiffModeEnabled", true);
     expect(state.diagram.overlays.enableDiffHighlights).toBe(true);
-    expect(dispatchResetMock).toHaveBeenCalled();
+    expect(storeMocks.dispatchResetMock).toHaveBeenCalled();
   });
 
-  it("test updateDiff", async () => {
+  it("should update state with new diffs when updateDiff is called", async () => {
     const { updateDiff } = useDmnDiffController();
-    getStateMock.mockReturnValue({
+    storeMocks.getStateMock.mockReturnValue({
       diff: { baseModel: { definitions: { "@_namespace": "ns" } } },
     });
 
@@ -137,7 +115,7 @@ describe("useDmnDiffController", () => {
     await updateDiff("<xml>changed</xml>");
 
     expect(DmnMarshaller.getMarshaller).toHaveBeenCalledTimes(1);
-    expect(setStateMock).toHaveBeenCalled();
+    expect(storeMocks.setStateMock).toHaveBeenCalled();
 
     const state = {
       diff: { deletedNodeIds: new Set() },
@@ -147,19 +125,16 @@ describe("useDmnDiffController", () => {
         diffsByEdgeId: new Map(),
       },
       dmn: { model: {}, reset: jest.fn() },
-      dispatch: dispatchMock,
+      dispatch: storeMocks.dispatchMock,
     };
 
     // Execute the last setState call which updates the diff
-    const lastCall = setStateMock.mock.calls[setStateMock.mock.calls.length - 1];
-    if (lastCall && typeof lastCall[0] === "function") {
-      lastCall[0](state);
-    }
+    applyStateUpdates(storeMocks.setStateMock, state);
 
-    expect(dispatchResetMock).toHaveBeenCalled();
+    expect(storeMocks.dispatchResetMock).toHaveBeenCalled();
   });
 
-  it("test closeDiff handles ghost edge cleanup", () => {
+  it("should handle ghost edge cleanup when closeDiff is called", () => {
     const { closeDiff } = useDmnDiffController();
 
     const mockModel = {
@@ -178,7 +153,7 @@ describe("useDmnDiffController", () => {
       ["edge2", DiffChangeType.REMOVED], // edge2 is a ghost edge
     ]);
 
-    setStateMock.mockImplementation((updater) => {
+    storeMocks.setStateMock.mockImplementation((updater: any) => {
       const state = {
         diff: { deletedNodeIds: new Set(["ghostNode"]) }, // ghostNode should be removed
         diagram: {
@@ -186,18 +161,15 @@ describe("useDmnDiffController", () => {
           overlays: { enableDiffHighlights: true },
         },
         dmn: { model: mockModel },
-        dispatch: dispatchMock,
+        dispatch: storeMocks.dispatchMock,
       };
       updater(state);
     });
 
     closeDiff();
 
-    expect(dispatchResetMock).toHaveBeenCalled();
-    const cleanedModel = dispatchResetMock.mock.calls[0][0];
-
-    // Verify ghost node removal logic (implicitly verified by filter calls)
-    // Verify ghost edge removal
+    expect(storeMocks.dispatchResetMock).toHaveBeenCalled();
+    const cleanedModel = storeMocks.dispatchResetMock.mock.calls[0][0];
     const node1 = cleanedModel.definitions.drgElement[0];
     expect(node1.informationRequirement).toHaveLength(1);
     expect(node1.informationRequirement[0]["@_id"]).toBe("edge1");
