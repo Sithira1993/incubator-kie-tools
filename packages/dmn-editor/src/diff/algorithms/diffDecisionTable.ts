@@ -53,6 +53,41 @@ export interface DecisionTableRule {
 }
 
 /**
+ * Creates a Map from column ID (or fallback) to column index.
+ * For columns without IDs, generates a consistent fallback ID based on column type and index.
+ *
+ * @param columns - Array of columns to map
+ * @param getIdOrName - Function to extract ID or name from a column
+ * @param columnType - Type prefix for fallback IDs (e.g., "input", "output", "annotation")
+ * @returns Map from column ID to index
+ */
+function createColumnIdMapping<T>(
+  columns: T[],
+  getIdOrName: (col: T) => string | undefined,
+  columnType: string
+): Map<string, number> {
+  return new Map(columns.map((col, i) => [getIdOrName(col) ?? `__${columnType}_${i}`, i]));
+}
+
+/**
+ * Extracts IDs that exist in both maps (common IDs).
+ * More efficient than Array.from().filter() as it avoids array conversion.
+ *
+ * @param mapA - First map of IDs to indices
+ * @param mapB - Second map of IDs to indices
+ * @returns Array of common IDs
+ */
+function extractCommonIds(mapA: Map<string, number>, mapB: Map<string, number>): string[] {
+  const commonIds: string[] = [];
+  for (const id of mapA.keys()) {
+    if (mapB.has(id)) {
+      commonIds.push(id);
+    }
+  }
+  return commonIds;
+}
+
+/**
  * Compares two Decision Table expressions and returns a structured diff of their differences.
  *
  * Decision Tables are compared across multiple dimensions:
@@ -83,7 +118,29 @@ export function diffDecisionTable(
   const inputDiff = diffColumns(tableA.input ?? [], tableB.input ?? [], "input");
   const outputDiff = diffColumns(tableA.output ?? [], tableB.output ?? [], "output");
   const annotationDiff = diffColumns(tableA.annotation ?? [], tableB.annotation ?? [], "annotation");
-  const ruleDiff = diffRules(tableA.rule ?? [], tableB.rule ?? []);
+
+  // Create ID→index mappings for columns in both models using helper function
+  const inputIdToIndexA = createColumnIdMapping(tableA.input ?? [], (col) => col["@_id"], "input");
+  const inputIdToIndexB = createColumnIdMapping(tableB.input ?? [], (col) => col["@_id"], "input");
+
+  const outputIdToIndexA = createColumnIdMapping(tableA.output ?? [], (col) => col["@_id"], "output");
+  const outputIdToIndexB = createColumnIdMapping(tableB.output ?? [], (col) => col["@_id"], "output");
+
+  const annotationIdToIndexA = createColumnIdMapping(tableA.annotation ?? [], (col) => col["@_name"], "annotation");
+  const annotationIdToIndexB = createColumnIdMapping(tableB.annotation ?? [], (col) => col["@_name"], "annotation");
+
+  // Extract common column IDs (columns that exist in both models)
+  const commonInputIds = extractCommonIds(inputIdToIndexA, inputIdToIndexB);
+  const commonOutputIds = extractCommonIds(outputIdToIndexA, outputIdToIndexB);
+  const commonAnnotationIds = extractCommonIds(annotationIdToIndexA, annotationIdToIndexB);
+
+  const columnMappings = {
+    input: { idsA: inputIdToIndexA, idsB: inputIdToIndexB, commonIds: commonInputIds },
+    output: { idsA: outputIdToIndexA, idsB: outputIdToIndexB, commonIds: commonOutputIds },
+    annotation: { idsA: annotationIdToIndexA, idsB: annotationIdToIndexB, commonIds: commonAnnotationIds },
+  };
+
+  const ruleDiff = diffRules(tableA.rule ?? [], tableB.rule ?? [], columnMappings);
 
   const hitPolicyA = tableA["@_hitPolicy"];
   const hitPolicyB = tableB["@_hitPolicy"];
@@ -346,13 +403,21 @@ function compareColumnProperties(
   return changes;
 }
 
-function diffRules(rulesA: DecisionTableRule[], rulesB: DecisionTableRule[]) {
+function diffRules(
+  rulesA: DecisionTableRule[],
+  rulesB: DecisionTableRule[],
+  columnMappings: {
+    input: { idsA: Map<string, number>; idsB: Map<string, number>; commonIds: string[] };
+    output: { idsA: Map<string, number>; idsB: Map<string, number>; commonIds: string[] };
+    annotation: { idsA: Map<string, number>; idsB: Map<string, number>; commonIds: string[] };
+  }
+) {
   const { added, removed, modified, hasChanges } = diffArrayElements(
     rulesA,
     rulesB,
     (rule) => rule["@_id"],
     (ruleA, ruleB, indexA, indexB) => {
-      const { modifications, changed, indexChange } = compareRuleEntries(ruleA, ruleB, indexA, indexB);
+      const { modifications, changed, indexChange } = compareRuleEntries(ruleA, ruleB, columnMappings, indexA, indexB);
       if (changed) {
         return { ...modifications, index: indexChange };
       }
@@ -369,14 +434,43 @@ function diffRules(rulesA: DecisionTableRule[], rulesB: DecisionTableRule[]) {
  *
  * @param ruleA - The base model rule
  * @param ruleB - The changed model rule
+ * @param columnMappings - ID-to-index mappings for columns
  * @param indexA - The index of ruleA in the original table (optional)
  * @param indexB - The index of ruleB in the new table (optional)
  * @returns Object containing detailed modifications (input/output/annotation changes) and index change info
  */
-function compareRuleEntries(ruleA: DecisionTableRule, ruleB: DecisionTableRule, indexA?: number, indexB?: number) {
-  const inputEntriesChange = diffDecisionTableEntries(ruleA.inputEntry, ruleB.inputEntry);
-  const outputEntriesChange = diffDecisionTableEntries(ruleA.outputEntry, ruleB.outputEntry);
-  const annotationEntriesChange = diffDecisionTableEntries(ruleA.annotationEntry, ruleB.annotationEntry);
+function compareRuleEntries(
+  ruleA: DecisionTableRule,
+  ruleB: DecisionTableRule,
+  columnMappings: {
+    input: { idsA: Map<string, number>; idsB: Map<string, number>; commonIds: string[] };
+    output: { idsA: Map<string, number>; idsB: Map<string, number>; commonIds: string[] };
+    annotation: { idsA: Map<string, number>; idsB: Map<string, number>; commonIds: string[] };
+  },
+  indexA?: number,
+  indexB?: number
+) {
+  const inputEntriesChange = diffDecisionTableEntries(
+    ruleA.inputEntry,
+    ruleB.inputEntry,
+    columnMappings.input.commonIds,
+    columnMappings.input.idsA,
+    columnMappings.input.idsB
+  );
+  const outputEntriesChange = diffDecisionTableEntries(
+    ruleA.outputEntry,
+    ruleB.outputEntry,
+    columnMappings.output.commonIds,
+    columnMappings.output.idsA,
+    columnMappings.output.idsB
+  );
+  const annotationEntriesChange = diffDecisionTableEntries(
+    ruleA.annotationEntry,
+    ruleB.annotationEntry,
+    columnMappings.annotation.commonIds,
+    columnMappings.annotation.idsA,
+    columnMappings.annotation.idsB
+  );
 
   let indexChange: DiffPropertyChange | undefined;
   if (indexA !== undefined && indexB !== undefined && indexA !== indexB) {
@@ -401,28 +495,45 @@ function compareRuleEntries(ruleA: DecisionTableRule, ruleB: DecisionTableRule, 
 }
 
 /**
- * Compares two arrays of Decision Table entries (input, output, or annotation entries).
- * Entries are compared by index and their text content is checked for differences.
+ * Compares two arrays of Decision Table entries (input, output, or annotation entries) using ID-based matching.
+ * Only compares entries for columns that exist in both models, preventing false positives from added/removed columns.
  *
  * @param entriesA - First array of entries (from base model)
  * @param entriesB - Second array of entries (from changed model)
- * @returns Record mapping entry index to the detected change
+ * @param commonColumnIds - IDs of columns that exist in both models
+ * @param idToIndexA - Mapping from column ID to index in base model
+ * @param idToIndexB - Mapping from column ID to index in current model
+ * @returns Record mapping entry index (in current model) to the detected change
  */
 function diffDecisionTableEntries(
   entriesA: Normalized<DMN_LATEST__tUnaryTests | DMN_LATEST__tLiteralExpression>[] | RuleAnnotation[] | undefined,
-  entriesB: Normalized<DMN_LATEST__tUnaryTests | DMN_LATEST__tLiteralExpression>[] | RuleAnnotation[] | undefined
+  entriesB: Normalized<DMN_LATEST__tUnaryTests | DMN_LATEST__tLiteralExpression>[] | RuleAnnotation[] | undefined,
+  commonColumnIds: string[],
+  idToIndexA: Map<string, number>,
+  idToIndexB: Map<string, number>
 ) {
   const changes: Record<number, DiffPropertyChange> = {};
   const arrA = entriesA ?? [];
   const arrB = entriesB ?? [];
-  const maxLen = Math.max(arrA.length, arrB.length);
 
-  for (let i = 0; i < maxLen; i++) {
-    const textA = arrA[i]?.text?.__$$text ?? "";
-    const textB = arrB[i]?.text?.__$$text ?? "";
+  // Only compare columns that exist in both models (common columns)
+  for (const columnId of commonColumnIds) {
+    const indexA = idToIndexA.get(columnId);
+    const indexB = idToIndexB.get(columnId);
+
+    // Skip if mapping doesn't exist (shouldn't happen for common IDs, but safety check)
+    if (indexA === undefined || indexB === undefined) {
+      continue;
+    }
+
+    const textA = arrA[indexA]?.text?.__$$text ?? "";
+    const textB = arrB[indexB]?.text?.__$$text ?? "";
+
     if (textA !== textB) {
-      changes[i] = { property: "text", previousValue: textA, currentValue: textB };
+      // Report change using indexB (current model index) for overlay rendering
+      changes[indexB] = { property: "text", previousValue: textA, currentValue: textB };
     }
   }
+
   return changes;
 }
