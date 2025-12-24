@@ -115,9 +115,9 @@ export function diffDecisionTable(
     return undefined;
   }
 
-  const inputDiff = diffColumns(tableA.input ?? [], tableB.input ?? [], "input");
-  const outputDiff = diffColumns(tableA.output ?? [], tableB.output ?? [], "output");
-  const annotationDiff = diffColumns(tableA.annotation ?? [], tableB.annotation ?? [], "annotation");
+  const inputDiff = diffColumns(tableA.input ?? [], tableB.input ?? [], "input", tableA, tableB);
+  const outputDiff = diffColumns(tableA.output ?? [], tableB.output ?? [], "output", tableA, tableB);
+  const annotationDiff = diffColumns(tableA.annotation ?? [], tableB.annotation ?? [], "annotation", tableA, tableB);
 
   // Create ID→index mappings for columns in both models using helper function
   const inputIdToIndexA = createColumnIdMapping(tableA.input ?? [], (col) => col["@_id"], "input");
@@ -158,19 +158,47 @@ export function diffDecisionTable(
     aggregationChange = { property: "aggregation", previousValue: aggregationA, currentValue: aggregationB };
   }
 
+  // Decision Table Label and Description
+  const labelA = tableA["@_label"];
+  const labelB = tableB["@_label"];
+  let labelChange: DiffPropertyChange | undefined;
+  if ((labelA ?? "") !== (labelB ?? "")) {
+    labelChange = { property: "label", previousValue: labelA, currentValue: labelB };
+  }
+
+  const descriptionA = (tableA as any).description?.__$$text;
+  const descriptionB = (tableB as any).description?.__$$text;
+  let descriptionChange: DiffPropertyChange | undefined;
+  if ((descriptionA ?? "") !== (descriptionB ?? "")) {
+    descriptionChange = { property: "description", previousValue: descriptionA, currentValue: descriptionB };
+  }
+
+  const outputLabelA = tableA["@_outputLabel"];
+  const outputLabelB = tableB["@_outputLabel"];
+  let outputLabelChange: DiffPropertyChange | undefined;
+  if ((outputLabelA ?? "") !== (outputLabelB ?? "")) {
+    outputLabelChange = { property: "outputLabel", previousValue: outputLabelA, currentValue: outputLabelB };
+  }
+
   if (
     !inputDiff.hasChanges &&
     !outputDiff.hasChanges &&
     !ruleDiff.hasChanges &&
     !annotationDiff.hasChanges &&
     !hitPolicyChange &&
-    !aggregationChange
+    !aggregationChange &&
+    !labelChange &&
+    !descriptionChange &&
+    !outputLabelChange
   ) {
     return undefined;
   }
 
   return {
     kind: "decisionTable",
+    label: labelChange,
+    description: descriptionChange,
+    outputLabel: outputLabelChange,
     hitPolicy: hitPolicyChange,
     aggregation: aggregationChange,
     input: inputDiff,
@@ -186,19 +214,23 @@ export function diffDecisionTable(
  * @param colsA - The base model columns (original state)
  * @param colsB - The changed model columns (current state)
  * @param type - The type of columns being compared ("input", "output", or "annotation")
+ * @param tableA - The base table model (optional, for context)
+ * @param tableB - The changed table model (optional, for context)
  * @returns Object containing details of added, removed, and modified columns, and a flag indicating if changes exists
  */
 function diffColumns(
   colsA: Normalized<DMN_LATEST__tInputClause | DMN_LATEST__tOutputClause | { "@_name"?: string }>[],
   colsB: Normalized<DMN_LATEST__tInputClause | DMN_LATEST__tOutputClause | { "@_name"?: string }>[],
-  type: "input" | "output" | "annotation"
+  type: "input" | "output" | "annotation",
+  tableA?: Normalized<BoxedDecisionTable>,
+  tableB?: Normalized<BoxedDecisionTable>
 ) {
   const { added, removed, modified, hasChanges } = diffArrayElements(
     colsA,
     colsB,
     (col) => (col as { "@_id"?: string })["@_id"],
     (colA, colB, indexA, indexB) => {
-      const changes = compareColumnProperties(colA, colB, type);
+      const changes = compareColumnProperties(colA, colB, type, indexA, indexB, tableA, tableB);
       if (changes && Object.keys(changes).length > 0) {
         return changes;
       }
@@ -215,14 +247,27 @@ function diffColumns(
  * @param colA - The base model column
  * @param colB - The changed model column
  * @param type - The type of column ("input", "output", or "annotation")
+ * @param indexA - Index of colA
+ * @param indexB - Index of colB
+ * @param tableA - The base table model
+ * @param tableB - The changed table model
  * @returns DecisionTableColumnDiff object if changes are found, or undefined
  */
 function compareColumnProperties(
   colA: Normalized<DMN_LATEST__tInputClause | DMN_LATEST__tOutputClause | { "@_name"?: string }>,
   colB: Normalized<DMN_LATEST__tInputClause | DMN_LATEST__tOutputClause | { "@_name"?: string }>,
-  type: "input" | "output" | "annotation"
+  type: "input" | "output" | "annotation",
+  indexA?: number,
+  indexB?: number,
+  tableA?: Normalized<BoxedDecisionTable>,
+  tableB?: Normalized<BoxedDecisionTable>
 ) {
   const changes: import("../types").DecisionTableColumnDiff = {};
+
+  if (indexA !== undefined && indexB !== undefined && indexA !== indexB) {
+    changes.index = { property: "index", previousValue: indexA, currentValue: indexB };
+  }
+
   let labelA: string | undefined;
   let labelB: string | undefined;
 
@@ -232,12 +277,26 @@ function compareColumnProperties(
   } else if (type === "output") {
     // Output columns can use either @_label (for single merged output) or @_name (for multiple outputs)
     // Check both properties with @_label as primary and @_name as fallback
-    labelA =
+    // If output column count is 1, use Table Label as fallback if column label is missing (per Table properties)
+    const labelAFromCol =
       (colA as Normalized<DMN_LATEST__tOutputClause>)["@_label"] ??
       (colA as Normalized<DMN_LATEST__tOutputClause>)["@_name"];
-    labelB =
+
+    const labelBFromCol =
       (colB as Normalized<DMN_LATEST__tOutputClause>)["@_label"] ??
       (colB as Normalized<DMN_LATEST__tOutputClause>)["@_name"];
+
+    if (tableA?.output?.length === 1 && !labelAFromCol) {
+      labelA = tableA["@_label"];
+    } else {
+      labelA = labelAFromCol;
+    }
+
+    if (tableB?.output?.length === 1 && !labelBFromCol) {
+      labelB = tableB["@_label"];
+    } else {
+      labelB = labelBFromCol;
+    }
   } else if (type === "annotation") {
     labelA = (colA as { "@_name"?: string })["@_name"];
     labelB = (colB as { "@_name"?: string })["@_name"];
@@ -259,11 +318,14 @@ function compareColumnProperties(
   const typeRefA =
     type === "input"
       ? (colA as Normalized<DMN_LATEST__tInputClause>).inputExpression?.["@_typeRef"]
-      : (colA as Normalized<DMN_LATEST__tOutputClause>)["@_typeRef"];
+      : (colA as Normalized<DMN_LATEST__tOutputClause>)["@_typeRef"] ??
+        (tableA?.output?.length === 1 ? tableA?.["@_typeRef"] : undefined);
+
   const typeRefB =
     type === "input"
       ? (colB as Normalized<DMN_LATEST__tInputClause>).inputExpression?.["@_typeRef"]
-      : (colB as Normalized<DMN_LATEST__tOutputClause>)["@_typeRef"];
+      : (colB as Normalized<DMN_LATEST__tOutputClause>)["@_typeRef"] ??
+        (tableB?.output?.length === 1 ? tableB?.["@_typeRef"] : undefined);
   if ((typeRefA ?? "") !== (typeRefB ?? "")) {
     changes.typeRef = { property: "typeRef", previousValue: typeRefA, currentValue: typeRefB };
   }
@@ -512,7 +574,7 @@ function diffDecisionTableEntries(
   idToIndexA: Map<string, number>,
   idToIndexB: Map<string, number>
 ) {
-  const changes: Record<number, DiffPropertyChange> = {};
+  const changes: Record<number, DiffPropertyChange[]> = {};
   const arrA = entriesA ?? [];
   const arrB = entriesB ?? [];
 
@@ -526,14 +588,59 @@ function diffDecisionTableEntries(
       continue;
     }
 
-    const textA = arrA[indexA]?.text?.__$$text ?? "";
-    const textB = arrB[indexB]?.text?.__$$text ?? "";
+    const entryA = arrA[indexA];
+    const entryB = arrB[indexB];
+    const entryChanges: DiffPropertyChange[] = [];
+
+    // 1. Text Property (common to UnaryTests, LiteralExpression, and RuleAnnotation)
+    const textA = entryA?.text?.__$$text ?? "";
+    const textB = entryB?.text?.__$$text ?? "";
 
     if (textA !== textB) {
-      // Report change using indexB (current model index) for overlay rendering
-      changes[indexB] = { property: "text", previousValue: textA, currentValue: textB };
+      entryChanges.push({ property: "text", previousValue: textA, currentValue: textB });
+    }
+
+    // 2. Properties specific to UnaryTests and LiteralExpression (not RuleAnnotation)
+    // RuleAnnotation only has 'text', so we check if it's one of the other types
+    if (isExpressionOrTest(entryA) && isExpressionOrTest(entryB)) {
+      // Description
+      const descA = entryA.description?.__$$text ?? "";
+      const descB = entryB.description?.__$$text ?? "";
+      if (descA !== descB) {
+        entryChanges.push({ property: "description", previousValue: descA, currentValue: descB });
+      }
+
+      // Expression Language
+      const langA = entryA["@_expressionLanguage"] ?? "";
+      const langB = entryB["@_expressionLanguage"] ?? "";
+      if (langA !== langB) {
+        entryChanges.push({ property: "expressionLanguage", previousValue: langA, currentValue: langB });
+      }
+    }
+
+    // 3. Properties specific to LiteralExpression (Output Entries)
+    if (isLiteralExpression(entryA) && isLiteralExpression(entryB)) {
+      // typeRef
+      const typeRefA = entryA["@_typeRef"] ?? "";
+      const typeRefB = entryB["@_typeRef"] ?? "";
+      if (typeRefA !== typeRefB) {
+        entryChanges.push({ property: "typeRef", previousValue: typeRefA, currentValue: typeRefB });
+      }
+    }
+
+    if (entryChanges.length > 0) {
+      changes[indexB] = entryChanges;
     }
   }
 
   return changes;
+}
+
+function isExpressionOrTest(item: any): item is Normalized<DMN_LATEST__tUnaryTests | DMN_LATEST__tLiteralExpression> {
+  return item && typeof item === "object" && !("text" in item && Object.keys(item).length === 1);
+}
+
+function isLiteralExpression(item: any): item is Normalized<DMN_LATEST__tLiteralExpression> {
+  // Simple check: RuleAnnotation doesn't have importedValues or typeRef
+  return item && (item["@_typeRef"] !== undefined || item.importedValues !== undefined);
 }

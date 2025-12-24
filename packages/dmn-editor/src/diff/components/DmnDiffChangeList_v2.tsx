@@ -304,27 +304,33 @@ const DecisionTableDetails: React.FC<{ diff: DecisionTableDiff }> = ({ diff }) =
                         Input Entries
                       </td>
                       <td className="dmn-diff-change-list-v2__details-cell dmn-diff-change-list-v2__details-cell--value">
-                        {Object.entries(ruleDiff.inputEntries).map(([index, change]) => (
+                        {Object.entries(ruleDiff.inputEntries).map(([index, changes]) => (
                           <div key={index} style={{ marginBottom: "8px" }}>
                             <strong>Index {index}:</strong>
-                            <div className="dmn-diff-change-list-v2__value-change">
-                              {change.previousValue !== undefined && (
-                                <div className="dmn-diff-change-list-v2__value-change-item">
-                                  <span className="dmn-diff-change-list-v2__value-change-label">Previous:</span>
-                                  <code className="dmn-diff-change-list-v2__value-change-value">
-                                    {JSON.stringify(change.previousValue)}
-                                  </code>
-                                </div>
-                              )}
-                              {change.currentValue !== undefined && (
-                                <div className="dmn-diff-change-list-v2__value-change-item">
-                                  <span className="dmn-diff-change-list-v2__value-change-label">Current:</span>
-                                  <code className="dmn-diff-change-list-v2__value-change-value">
-                                    {JSON.stringify(change.currentValue)}
-                                  </code>
-                                </div>
-                              )}
-                            </div>
+                            {changes.map((change, idx) => (
+                              <div key={idx} className="dmn-diff-change-list-v2__value-change">
+                                {change.previousValue !== undefined && (
+                                  <div className="dmn-diff-change-list-v2__value-change-item">
+                                    <span className="dmn-diff-change-list-v2__value-change-label">
+                                      {change.property} (Prev):
+                                    </span>
+                                    <code className="dmn-diff-change-list-v2__value-change-value">
+                                      {JSON.stringify(change.previousValue)}
+                                    </code>
+                                  </div>
+                                )}
+                                {change.currentValue !== undefined && (
+                                  <div className="dmn-diff-change-list-v2__value-change-item">
+                                    <span className="dmn-diff-change-list-v2__value-change-label">
+                                      {change.property} (Curr):
+                                    </span>
+                                    <code className="dmn-diff-change-list-v2__value-change-value">
+                                      {JSON.stringify(change.currentValue)}
+                                    </code>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         ))}
                       </td>
@@ -336,27 +342,33 @@ const DecisionTableDetails: React.FC<{ diff: DecisionTableDiff }> = ({ diff }) =
                         Output Entries
                       </td>
                       <td className="dmn-diff-change-list-v2__details-cell dmn-diff-change-list-v2__details-cell--value">
-                        {Object.entries(ruleDiff.outputEntries).map(([index, change]) => (
+                        {Object.entries(ruleDiff.outputEntries).map(([index, changes]) => (
                           <div key={index} style={{ marginBottom: "8px" }}>
                             <strong>Index {index}:</strong>
-                            <div className="dmn-diff-change-list-v2__value-change">
-                              {change.previousValue !== undefined && (
-                                <div className="dmn-diff-change-list-v2__value-change-item">
-                                  <span className="dmn-diff-change-list-v2__value-change-label">Previous:</span>
-                                  <code className="dmn-diff-change-list-v2__value-change-value">
-                                    {JSON.stringify(change.previousValue)}
-                                  </code>
-                                </div>
-                              )}
-                              {change.currentValue !== undefined && (
-                                <div className="dmn-diff-change-list-v2__value-change-item">
-                                  <span className="dmn-diff-change-list-v2__value-change-label">Current:</span>
-                                  <code className="dmn-diff-change-list-v2__value-change-value">
-                                    {JSON.stringify(change.currentValue)}
-                                  </code>
-                                </div>
-                              )}
-                            </div>
+                            {changes.map((change, idx) => (
+                              <div key={idx} className="dmn-diff-change-list-v2__value-change">
+                                {change.previousValue !== undefined && (
+                                  <div className="dmn-diff-change-list-v2__value-change-item">
+                                    <span className="dmn-diff-change-list-v2__value-change-label">
+                                      {change.property} (Prev):
+                                    </span>
+                                    <code className="dmn-diff-change-list-v2__value-change-value">
+                                      {JSON.stringify(change.previousValue)}
+                                    </code>
+                                  </div>
+                                )}
+                                {change.currentValue !== undefined && (
+                                  <div className="dmn-diff-change-list-v2__value-change-item">
+                                    <span className="dmn-diff-change-list-v2__value-change-label">
+                                      {change.property} (Curr):
+                                    </span>
+                                    <code className="dmn-diff-change-list-v2__value-change-value">
+                                      {JSON.stringify(change.currentValue)}
+                                    </code>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         ))}
                       </td>
@@ -368,27 +380,33 @@ const DecisionTableDetails: React.FC<{ diff: DecisionTableDiff }> = ({ diff }) =
                         Annotation Entries
                       </td>
                       <td className="dmn-diff-change-list-v2__details-cell dmn-diff-change-list-v2__details-cell--value">
-                        {Object.entries(ruleDiff.annotationEntries).map(([index, change]) => (
+                        {Object.entries(ruleDiff.annotationEntries).map(([index, changes]) => (
                           <div key={index} style={{ marginBottom: "8px" }}>
                             <strong>Index {index}:</strong>
-                            <div className="dmn-diff-change-list-v2__value-change">
-                              {change.previousValue !== undefined && (
-                                <div className="dmn-diff-change-list-v2__value-change-item">
-                                  <span className="dmn-diff-change-list-v2__value-change-label">Previous:</span>
-                                  <code className="dmn-diff-change-list-v2__value-change-value">
-                                    {JSON.stringify(change.previousValue)}
-                                  </code>
-                                </div>
-                              )}
-                              {change.currentValue !== undefined && (
-                                <div className="dmn-diff-change-list-v2__value-change-item">
-                                  <span className="dmn-diff-change-list-v2__value-change-label">Current:</span>
-                                  <code className="dmn-diff-change-list-v2__value-change-value">
-                                    {JSON.stringify(change.currentValue)}
-                                  </code>
-                                </div>
-                              )}
-                            </div>
+                            {changes.map((change, idx) => (
+                              <div key={idx} className="dmn-diff-change-list-v2__value-change">
+                                {change.previousValue !== undefined && (
+                                  <div className="dmn-diff-change-list-v2__value-change-item">
+                                    <span className="dmn-diff-change-list-v2__value-change-label">
+                                      {change.property} (Prev):
+                                    </span>
+                                    <code className="dmn-diff-change-list-v2__value-change-value">
+                                      {JSON.stringify(change.previousValue)}
+                                    </code>
+                                  </div>
+                                )}
+                                {change.currentValue !== undefined && (
+                                  <div className="dmn-diff-change-list-v2__value-change-item">
+                                    <span className="dmn-diff-change-list-v2__value-change-label">
+                                      {change.property} (Curr):
+                                    </span>
+                                    <code className="dmn-diff-change-list-v2__value-change-value">
+                                      {JSON.stringify(change.currentValue)}
+                                    </code>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         ))}
                       </td>

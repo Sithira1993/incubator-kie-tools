@@ -58,6 +58,27 @@ export function diffFunctionDefinition(
 
   let hasChanges = false;
 
+  // Check expression-level typeRef (functions don't have @_label)
+  let labelChange: DiffPropertyChange | undefined;
+  if (funcA["@_label"] !== funcB["@_label"]) {
+    labelChange = { property: "label", previousValue: funcA["@_label"], currentValue: funcB["@_label"] };
+    hasChanges = true;
+  }
+
+  let typeRefChange: DiffPropertyChange | undefined;
+  if (funcA["@_typeRef"] !== funcB["@_typeRef"]) {
+    typeRefChange = { property: "typeRef", previousValue: funcA["@_typeRef"], currentValue: funcB["@_typeRef"] };
+    hasChanges = true;
+  }
+
+  const descA = (funcA as any).description?.__$$text;
+  const descB = (funcB as any).description?.__$$text;
+  let descriptionChange: DiffPropertyChange | undefined;
+  if ((descA ?? "") !== (descB ?? "")) {
+    descriptionChange = { property: "description", previousValue: descA, currentValue: descB };
+    hasChanges = true;
+  }
+
   const {
     added,
     removed,
@@ -75,6 +96,11 @@ export function diffFunctionDefinition(
       if (paramA["@_typeRef"] !== paramB["@_typeRef"]) {
         changes.push({ property: "typeRef", previousValue: paramA["@_typeRef"], currentValue: paramB["@_typeRef"] });
       }
+      const descA = paramA.description?.__$$text;
+      const descB = paramB.description?.__$$text;
+      if (descA !== descB) {
+        changes.push({ property: "description", previousValue: descA, currentValue: descB });
+      }
 
       let indexChange: DiffPropertyChange | undefined;
       if (indexA !== undefined && indexB !== undefined && indexA !== indexB) {
@@ -90,6 +116,12 @@ export function diffFunctionDefinition(
 
   if (paramsHaveChanges) hasChanges = true;
 
+  let kindChange: DiffPropertyChange | undefined;
+  if (funcA["@_kind"] !== funcB["@_kind"]) {
+    kindChange = { property: "kind", previousValue: funcA["@_kind"], currentValue: funcB["@_kind"] };
+    hasChanges = true;
+  }
+
   const exprDiff = diffBoxedExpression(funcA.expression, funcB.expression);
   if (exprDiff) hasChanges = true;
 
@@ -97,7 +129,11 @@ export function diffFunctionDefinition(
 
   return {
     kind: "functionDefinition",
+    label: labelChange,
+    description: descriptionChange,
+    typeRef: typeRefChange,
     parameters: { added, removed, modified },
+    kindProperty: kindChange,
     expression: exprDiff,
   };
 }

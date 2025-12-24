@@ -64,6 +64,32 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         expect(result.nodes[0].boxedExpressionDiff?.kind).toBe("literalExpression");
       });
 
+      it("detects description change", () => {
+        const nodeA = {
+          "@_id": "n1",
+          "@_name": "Dec1",
+          __$$element: "decision",
+          literalExpression: { ...DMN.literal("foo"), description: { __$$text: "desc A" } },
+        };
+        const nodeB = {
+          ...nodeA,
+          literalExpression: { ...DMN.literal("foo"), description: { __$$text: "desc B" } },
+        };
+
+        const result = computeDmnDiff(createModelWithExpression(nodeA), createModelWithExpression(nodeB));
+
+        expect(result.hasChanges).toBe(true);
+        expect(result.nodes[0].changeType).toBe(DiffChangeType.MODIFIED);
+        expect(result.nodes[0].boxedExpressionDiff).toEqual({
+          kind: "literalExpression",
+          description: {
+            property: "description",
+            previousValue: "desc A",
+            currentValue: "desc B",
+          },
+        });
+      });
+
       it("detects expression type replacement", () => {
         const nodeA = { "@_id": "n1", __$$element: "decision", literalExpression: DMN.literal("foo") };
         const nodeB = { "@_id": "n1", __$$element: "decision", list: DMN.list([]) };
@@ -226,7 +252,7 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff.kind).toBe("decisionTable");
-        expect(diff.rules.modified["rule1"].inputEntries[0].currentValue).toBe("val2");
+        expect(diff.rules.modified["rule1"].inputEntries[0][0].currentValue).toBe("val2");
       });
 
       it("detects annotation property change (name)", () => {
@@ -262,7 +288,7 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff).toBeDefined();
         // Should treat index 0 as modified, using "0" as key
-        expect(diff.rules.modified["0"].inputEntries[0].currentValue).toBe("B");
+        expect(diff.rules.modified["0"].inputEntries[0][0].currentValue).toBe("B");
       });
 
       it("detects rule reordering", () => {
@@ -287,6 +313,22 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
     });
 
     describe("Decision Table - Property Checks", () => {
+      it("detects description change", () => {
+        const dtA = DMN.decisionTable([], []);
+        (dtA as any).description = { __$$text: "desc A" };
+
+        const dtB = DMN.decisionTable([], []);
+        (dtB as any).description = { __$$text: "desc B" };
+
+        const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
+        expect(diff).toBeDefined();
+        expect(diff.kind).toBe("decisionTable");
+        expect(diff.description).toEqual({
+          property: "description",
+          previousValue: "desc A",
+          currentValue: "desc B",
+        });
+      });
       it("detects changes in Input Constraints (inputValues)", () => {
         const inputA = DMN.inputClause("Input 1", "in1");
         // TypeScript types don't include inputValues property
@@ -347,6 +389,107 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         expect(changes.defaultOutputEntry).toBeDefined();
         expect(changes.defaultOutputEntry?.currentValue).toBe("10");
       });
+
+      it("detects outputLabel change", () => {
+        const dtA = DMN.decisionTable([], []);
+        dtA["@_outputLabel"] = "Label A";
+
+        const dtB = DMN.decisionTable([], []);
+        dtB["@_outputLabel"] = "Label B";
+
+        const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
+        expect(diff).toBeDefined();
+        expect(diff.kind).toBe("decisionTable");
+        expect(diff.outputLabel).toEqual({
+          property: "outputLabel",
+          previousValue: "Label A",
+          currentValue: "Label B",
+        });
+      });
+    });
+
+    describe("Decision Table - Column Diff", () => {
+      it("detects input column reordering", () => {
+        const in1 = DMN.inputClause("Input 1", "in1");
+        const in2 = DMN.inputClause("Input 2", "in2");
+
+        const dtA = DMN.decisionTable([in1, in2], []);
+        const dtB = DMN.decisionTable([in2, in1], []);
+
+        const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
+        expect(diff).toBeDefined();
+        expect(diff.input.modified["in1"].index).toEqual({
+          property: "index",
+          previousValue: 0,
+          currentValue: 1,
+        });
+        expect(diff.input.modified["in2"].index).toEqual({
+          property: "index",
+          previousValue: 1,
+          currentValue: 0,
+        });
+      });
+
+      it("detects output column reordering", () => {
+        // Helper to create basic output column with ID
+        const out1 = { "@_id": "out1", "@_name": "Output 1" } as any;
+        const out2 = { "@_id": "out2", "@_name": "Output 2" } as any;
+
+        const dtA = DMN.decisionTable([], []);
+        dtA.output = [out1, out2];
+
+        const dtB = DMN.decisionTable([], []);
+        dtB.output = [out2, out1];
+
+        const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
+        expect(diff).toBeDefined();
+        expect(diff.output.modified["out1"].index).toEqual({
+          property: "index",
+          previousValue: 0,
+          currentValue: 1,
+        });
+        expect(diff.output.modified["out2"].index).toEqual({
+          property: "index",
+          previousValue: 1,
+          currentValue: 0,
+        });
+      });
+
+      it("inherits table label for single output column name diff", () => {
+        const dtA = DMN.decisionTable([], []);
+        dtA["@_label"] = "Table Label A";
+        dtA.output = [{ "@_id": "out1" } as any]; // No name/label on column itself
+
+        const dtB = DMN.decisionTable([], []);
+        dtB["@_label"] = "Table Label B";
+        dtB.output = [{ "@_id": "out1" } as any];
+
+        const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
+
+        expect(diff.output.modified["out1"]).toBeDefined();
+        expect(diff.output.modified["out1"].label).toEqual({
+          property: "label",
+          previousValue: "Table Label A",
+          currentValue: "Table Label B",
+        });
+      });
+
+      it("uses column label over table label when multiple outputs exist", () => {
+        const dtA = DMN.decisionTable([], []);
+        dtA["@_label"] = "Table Label";
+        dtA.output = [{ "@_id": "out1", "@_name": "Col 1 A" } as any, { "@_id": "out2", "@_name": "Col 2" } as any];
+
+        const dtB = DMN.decisionTable([], []);
+        dtB["@_label"] = "Table Label";
+        dtB.output = [{ "@_id": "out1", "@_name": "Col 1 B" } as any, { "@_id": "out2", "@_name": "Col 2" } as any];
+
+        const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
+        expect(diff.output.modified["out1"].label).toEqual({
+          property: "label",
+          previousValue: "Col 1 A",
+          currentValue: "Col 1 B",
+        });
+      });
     });
 
     describe("Decision Table - Annotation Entries", () => {
@@ -358,15 +501,17 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         ruleB.annotationEntry = [{ text: { __$$text: "Modified annotation" } }];
 
         const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleA]);
+        dtA.annotation = [{ "@_name": "Annotation 1" }];
         const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleB]);
+        dtB.annotation = [{ "@_name": "Annotation 1" }];
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff).toBeDefined();
         expect(diff.kind).toBe("decisionTable");
         expect(diff.rules.modified["r1"].annotationEntries[0]).toBeDefined();
-        expect(diff.rules.modified["r1"].annotationEntries[0].property).toBe("text");
-        expect(diff.rules.modified["r1"].annotationEntries[0].previousValue).toBe("Original annotation");
-        expect(diff.rules.modified["r1"].annotationEntries[0].currentValue).toBe("Modified annotation");
+        expect(diff.rules.modified["r1"].annotationEntries[0][0].property).toBe("text");
+        expect(diff.rules.modified["r1"].annotationEntries[0][0].previousValue).toBe("Original annotation");
+        expect(diff.rules.modified["r1"].annotationEntries[0][0].currentValue).toBe("Modified annotation");
       });
 
       it("detects multiple annotation entries changes in same rule", () => {
@@ -385,13 +530,15 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         ];
 
         const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleA]);
+        dtA.annotation = [{ "@_name": "Annotation 1" }, { "@_name": "Annotation 2" }, { "@_name": "Annotation 3" }];
         const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleB]);
+        dtB.annotation = [{ "@_name": "Annotation 1" }, { "@_name": "Annotation 2" }, { "@_name": "Annotation 3" }];
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff).toBeDefined();
         expect(diff.rules.modified["r1"].annotationEntries[0]).toBeUndefined(); // Index 0 unchanged
         expect(diff.rules.modified["r1"].annotationEntries[1]).toBeDefined(); // Index 1 changed
-        expect(diff.rules.modified["r1"].annotationEntries[1].currentValue).toBe("Modified Annotation 2");
+        expect(diff.rules.modified["r1"].annotationEntries[1][0].currentValue).toBe("Modified Annotation 2");
         expect(diff.rules.modified["r1"].annotationEntries[2]).toBeUndefined(); // Index 2 unchanged
       });
 
@@ -418,13 +565,15 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         ruleB.annotationEntry = [{ text: { __$$text: "New annotation" } }];
 
         const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleA]);
+        dtA.annotation = [{ "@_name": "Annotation 1" }];
         const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleB]);
+        dtB.annotation = [{ "@_name": "Annotation 1" }];
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff).toBeDefined();
         expect(diff.rules.modified["r1"].annotationEntries[0]).toBeDefined();
-        expect(diff.rules.modified["r1"].annotationEntries[0].previousValue).toBe("");
-        expect(diff.rules.modified["r1"].annotationEntries[0].currentValue).toBe("New annotation");
+        expect(diff.rules.modified["r1"].annotationEntries[0][0].previousValue).toBe("");
+        expect(diff.rules.modified["r1"].annotationEntries[0][0].currentValue).toBe("New annotation");
       });
 
       it("detects annotation entry removal (non-empty to empty)", () => {
@@ -435,13 +584,15 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         ruleB.annotationEntry = [];
 
         const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleA]);
+        dtA.annotation = [{ "@_name": "Annotation 1" }];
         const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleB]);
+        dtB.annotation = [{ "@_name": "Annotation 1" }];
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff).toBeDefined();
         expect(diff.rules.modified["r1"].annotationEntries[0]).toBeDefined();
-        expect(diff.rules.modified["r1"].annotationEntries[0].previousValue).toBe("Removed annotation");
-        expect(diff.rules.modified["r1"].annotationEntries[0].currentValue).toBe("");
+        expect(diff.rules.modified["r1"].annotationEntries[0][0].previousValue).toBe("Removed annotation");
+        expect(diff.rules.modified["r1"].annotationEntries[0][0].currentValue).toBe("");
       });
 
       it("handles undefined annotation entries", () => {
@@ -1603,7 +1754,7 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff.rules.modified["0"]).toBeDefined();
-        expect(diff.rules.modified["0"].inputEntries[0].currentValue).toBe("A_mod");
+        expect(diff.rules.modified["0"].inputEntries[0][0].currentValue).toBe("A_mod");
       });
     });
 

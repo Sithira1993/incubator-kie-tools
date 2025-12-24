@@ -141,7 +141,10 @@ export function diffFor(
 
 type ExpressionExtractor<T> = (expr: Normalized<T>) => Normalized<BoxedExpression> | undefined;
 
-function diffGenericExpression<T extends BoxedExpression, D extends BoxedExpressionDiff>(
+function diffGenericExpression<
+  T extends BoxedExpression & { "@_iteratorVariable"?: string },
+  D extends BoxedExpressionDiff & { iteratorVariable?: import("../types").DiffPropertyChange },
+>(
   exprA: Normalized<T>,
   exprB: Normalized<T>,
   kind: D["kind"],
@@ -158,7 +161,40 @@ function diffGenericExpression<T extends BoxedExpression, D extends BoxedExpress
   const result: Partial<D> = { kind } as Partial<D>;
   let hasChanges = false;
 
+  // Check iteratorVariable if applicable
+  const iterA = exprA["@_iteratorVariable"];
+  const iterB = exprB["@_iteratorVariable"];
+  if (iterA !== iterB) {
+    result.iteratorVariable = { property: "iteratorVariable", previousValue: iterA, currentValue: iterB };
+    hasChanges = true;
+  }
+
+  // Check Common Properties (label, typeRef, description)
+  // Note: Cast to specific Partial<D> properties to satisfy TypeScript
+  const labelA = exprA["@_label"];
+  const labelB = exprB["@_label"];
+  if (labelA !== labelB) {
+    (result as any).label = { property: "label", previousValue: labelA, currentValue: labelB };
+    hasChanges = true;
+  }
+
+  const typeRefA = exprA["@_typeRef"];
+  const typeRefB = exprB["@_typeRef"];
+  if (typeRefA !== typeRefB) {
+    (result as any).typeRef = { property: "typeRef", previousValue: typeRefA, currentValue: typeRefB };
+    hasChanges = true;
+  }
+
+  const descA = (exprA as any).description?.__$$text;
+  const descB = (exprB as any).description?.__$$text;
+  if ((descA ?? "") !== (descB ?? "")) {
+    (result as any).description = { property: "description", previousValue: descA, currentValue: descB };
+    hasChanges = true;
+  }
+
   for (const [key, extract] of Object.entries(extractors)) {
+    if (key === "iteratorVariable") continue; // Skip if accidentally passed in extractors
+
     const diff = diffBoxedExpression(
       (extract as ExpressionExtractor<T>)(exprA),
       (extract as ExpressionExtractor<T>)(exprB)

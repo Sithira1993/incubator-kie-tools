@@ -38,15 +38,40 @@ export function diffLiteralExpression(
   const textA = exprA.text?.__$$text;
   const textB = exprB.text?.__$$text;
 
+  const changes: Partial<import("../types").LiteralExpressionDiff> = {};
+  let hasChanges = false;
+
   if (textA !== textB) {
+    changes.text = { property: "text", previousValue: textA, currentValue: textB };
+    hasChanges = true;
+  }
+
+  const typeRefA = exprA["@_typeRef"];
+  const typeRefB = exprB["@_typeRef"];
+  if (typeRefA !== typeRefB) {
+    changes.typeRef = { property: "typeRef", previousValue: typeRefA, currentValue: typeRefB };
+    hasChanges = true;
+  }
+
+  const descA = (exprA as any).description?.__$$text;
+  const descB = (exprB as any).description?.__$$text;
+  if (descA !== descB) {
+    changes.description = { property: "description", previousValue: descA, currentValue: descB };
+    hasChanges = true;
+  }
+
+  const langA = exprA["@_expressionLanguage"];
+  const langB = exprB["@_expressionLanguage"];
+  if (langA !== langB) {
+    changes.expressionLanguage = { property: "expressionLanguage", previousValue: langA, currentValue: langB };
+    hasChanges = true;
+  }
+
+  if (hasChanges) {
     return {
       kind: "literalExpression",
-      text: {
-        property: "text",
-        previousValue: textA,
-        currentValue: textB,
-      },
-    };
+      ...changes,
+    } as BoxedExpressionDiff;
   }
   return undefined;
 }
