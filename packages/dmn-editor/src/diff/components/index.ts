@@ -20,3 +20,4 @@
 export * from "./DmnDiffUploader";
 export * from "./DmnDiffViewer";
 export * from "./DmnDiffChangeList";
+export * from "./DmnDiffChangeList_v2";
