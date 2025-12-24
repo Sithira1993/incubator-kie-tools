@@ -144,6 +144,7 @@ export interface DecisionTableColumnDiff {
   // Label/Name
   label?: DiffPropertyChange;
   name?: DiffPropertyChange; // For annotation columns
+  index?: DiffPropertyChange; // For column reordering
 
   // Type
   typeRef?: DiffPropertyChange;
