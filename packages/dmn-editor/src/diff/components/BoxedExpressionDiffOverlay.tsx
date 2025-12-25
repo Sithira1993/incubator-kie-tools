@@ -21,6 +21,7 @@ import * as React from "react";
 import { BoxedExpressionDiff } from "../types";
 import { DMN15__tDecisionTable } from "@kie-tools/dmn-marshaller/dist/schemas/dmn-1_5/ts-gen/types";
 import { DecisionTableDiffOverlay } from "./DecisionTableDiffOverlay";
+import { LiteralExpressionDiffOverlay } from "./LiteralExpressionDiffOverlay";
 import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
 import { BoxedExpression } from "@kie-tools/boxed-expression-component/dist/api";
 
@@ -41,7 +42,7 @@ export function BoxedExpressionDiffOverlay({
     return null;
   }
 
-  // Route to Decision Table overlay for both granular diffs and expressionReplacement
+  // Route to Decision Table overlay
   if (
     (diff.kind === "decisionTable" || diff.kind === "expressionReplacement") &&
     currentExpression?.__$$element === "decisionTable"
@@ -56,7 +57,15 @@ export function BoxedExpressionDiffOverlay({
     );
   }
 
-  // Future: Add other expression overlays here (e.g., Context, Relation, LiteralExpression)
+  // Route to Literal Expression overlay
+  if (
+    diff.kind === "literalExpression" ||
+    (diff.kind === "expressionReplacement" && currentExpression?.__$$element === "literalExpression")
+  ) {
+    return <LiteralExpressionDiffOverlay diff={diff} expressionHolderId={expressionHolderId} />;
+  }
+
+  // Future: Add other expression overlays here (Context, Relation, Invocation, etc.)
 
   return null;
 }
