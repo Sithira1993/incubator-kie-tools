@@ -22,6 +22,7 @@ import { DMN_LATEST__tContextEntry } from "@kie-tools/dmn-marshaller";
 import { BoxedContext, BoxedExpression } from "@kie-tools/boxed-expression-component/dist/api";
 import { BoxedExpressionDiff, DiffPropertyChange } from "../types";
 import { diffArrayElements } from "./diffUtils";
+import { getDescriptionText } from "./typeGuards";
 
 /**
  * Compares two Context expressions and returns a structured diff of their differences.
@@ -81,8 +82,8 @@ export function diffContext(
     hasChanges = true;
   }
 
-  const descA = (ctxA as any).description?.__$$text;
-  const descB = (ctxB as any).description?.__$$text;
+  const descA = getDescriptionText(ctxA);
+  const descB = getDescriptionText(ctxB);
   let descriptionChange: DiffPropertyChange | undefined;
   if ((descA ?? "") !== (descB ?? "")) {
     descriptionChange = { property: "description", previousValue: descA, currentValue: descB };

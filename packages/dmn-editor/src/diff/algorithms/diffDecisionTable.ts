@@ -27,6 +27,7 @@ import {
 import { BoxedDecisionTable } from "@kie-tools/boxed-expression-component/dist/api";
 import { BoxedExpressionDiff, DiffPropertyChange } from "../types";
 import { diffArrayElements, indexElementsById } from "./diffUtils";
+import { getDescriptionText } from "./typeGuards";
 
 /**
  * Represents a rule annotation entry in a Decision Table.
@@ -166,8 +167,8 @@ export function diffDecisionTable(
     labelChange = { property: "label", previousValue: labelA, currentValue: labelB };
   }
 
-  const descriptionA = (tableA as any).description?.__$$text;
-  const descriptionB = (tableB as any).description?.__$$text;
+  const descriptionA = getDescriptionText(tableA);
+  const descriptionB = getDescriptionText(tableB);
   let descriptionChange: DiffPropertyChange | undefined;
   if ((descriptionA ?? "") !== (descriptionB ?? "")) {
     descriptionChange = { property: "description", previousValue: descriptionA, currentValue: descriptionB };
@@ -331,8 +332,8 @@ function compareColumnProperties(
   }
 
   // Column-level description (applies to all column types)
-  const descriptionA = (colA as any).description?.__$$text;
-  const descriptionB = (colB as any).description?.__$$text;
+  const descriptionA = getDescriptionText(colA);
+  const descriptionB = getDescriptionText(colB);
   if ((descriptionA ?? "") !== (descriptionB ?? "")) {
     changes.description = { property: "description", previousValue: descriptionA, currentValue: descriptionB };
   }
@@ -636,11 +637,34 @@ function diffDecisionTableEntries(
   return changes;
 }
 
-function isExpressionOrTest(item: any): item is Normalized<DMN_LATEST__tUnaryTests | DMN_LATEST__tLiteralExpression> {
-  return item && typeof item === "object" && !("text" in item && Object.keys(item).length === 1);
+/**
+ * Type guard to check if an item is a UnaryTests or LiteralExpression (not a simple RuleAnnotation).
+ * These types have additional properties beyond just 'text'.
+ *
+ * @param item - The item to check
+ * @returns True if the item is a UnaryTests or LiteralExpression
+ */
+function isExpressionOrTest(
+  item: unknown
+): item is Normalized<DMN_LATEST__tUnaryTests | DMN_LATEST__tLiteralExpression> {
+  if (item === null || typeof item !== "object") {
+    return false;
+  }
+  // Check for properties that exist on UnaryTests/LiteralExpression but not on simple RuleAnnotation
+  return "description" in item || "@_expressionLanguage" in item;
 }
 
-function isLiteralExpression(item: any): item is Normalized<DMN_LATEST__tLiteralExpression> {
-  // Simple check: RuleAnnotation doesn't have importedValues or typeRef
-  return item && (item["@_typeRef"] !== undefined || item.importedValues !== undefined);
+/**
+ * Type guard to check if an item is a LiteralExpression.
+ * LiteralExpression has typeRef property which RuleAnnotation and UnaryTests don't have.
+ *
+ * @param item - The item to check
+ * @returns True if the item is a LiteralExpression
+ */
+function isLiteralExpression(item: unknown): item is Normalized<DMN_LATEST__tLiteralExpression> {
+  if (item === null || typeof item !== "object") {
+    return false;
+  }
+  // LiteralExpression can have @_typeRef or importedValues
+  return "@_typeRef" in item || "importedValues" in item;
 }

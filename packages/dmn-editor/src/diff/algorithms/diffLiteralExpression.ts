@@ -20,6 +20,7 @@
 import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
 import { BoxedLiteral } from "@kie-tools/boxed-expression-component/dist/api";
 import { BoxedExpressionDiff } from "../types";
+import { getDescriptionText } from "./typeGuards";
 
 /**
  * Compares two Literal Expressions and returns a structured diff of their differences.
@@ -53,8 +54,8 @@ export function diffLiteralExpression(
     hasChanges = true;
   }
 
-  const descA = (exprA as any).description?.__$$text;
-  const descB = (exprB as any).description?.__$$text;
+  const descA = getDescriptionText(exprA);
+  const descB = getDescriptionText(exprB);
   if (descA !== descB) {
     changes.description = { property: "description", previousValue: descA, currentValue: descB };
     hasChanges = true;

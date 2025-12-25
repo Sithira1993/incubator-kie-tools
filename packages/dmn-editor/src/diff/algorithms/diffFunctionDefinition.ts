@@ -22,6 +22,7 @@ import { DMN_LATEST__tInformationItem } from "@kie-tools/dmn-marshaller";
 import { BoxedFunction, BoxedExpression } from "@kie-tools/boxed-expression-component/dist/api";
 import { BoxedExpressionDiff, DiffPropertyChange } from "../types";
 import { diffArrayElements } from "./diffUtils";
+import { getDescriptionText } from "./typeGuards";
 
 /**
  * Compares two Function Definition expressions and returns a structured diff of their differences.
@@ -71,8 +72,8 @@ export function diffFunctionDefinition(
     hasChanges = true;
   }
 
-  const descA = (funcA as any).description?.__$$text;
-  const descB = (funcB as any).description?.__$$text;
+  const descA = getDescriptionText(funcA);
+  const descB = getDescriptionText(funcB);
   let descriptionChange: DiffPropertyChange | undefined;
   if ((descA ?? "") !== (descB ?? "")) {
     descriptionChange = { property: "description", previousValue: descA, currentValue: descB };

@@ -22,6 +22,7 @@ import { DMN_LATEST__tInformationItem, DMN_LATEST__tList } from "@kie-tools/dmn-
 import { BoxedRelation, BoxedExpression } from "@kie-tools/boxed-expression-component/dist/api";
 import { BoxedExpressionDiff, DiffPropertyChange } from "../types";
 import { diffArrayElements } from "./diffUtils";
+import { getDescriptionText } from "./typeGuards";
 
 /**
  * Compares two Relation expressions and returns a structured diff of their differences.
@@ -76,8 +77,8 @@ export function diffRelation(
     hasChanges = true;
   }
 
-  const descA = (relA as any).description?.__$$text;
-  const descB = (relB as any).description?.__$$text;
+  const descA = getDescriptionText(relA);
+  const descB = getDescriptionText(relB);
   let descriptionChange: DiffPropertyChange | undefined;
   if ((descA ?? "") !== (descB ?? "")) {
     descriptionChange = { property: "description", previousValue: descA, currentValue: descB };

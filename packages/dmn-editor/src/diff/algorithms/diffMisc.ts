@@ -26,7 +26,16 @@ import {
   BoxedFor,
   BoxedExpression,
 } from "@kie-tools/boxed-expression-component/dist/api";
-import { BoxedExpressionDiff, ConditionalDiff, FilterDiff, EveryDiff, SomeDiff, ForDiff } from "../types";
+import {
+  BoxedExpressionDiff,
+  ConditionalDiff,
+  FilterDiff,
+  EveryDiff,
+  SomeDiff,
+  ForDiff,
+  DiffPropertyChange,
+} from "../types";
+import { getDescriptionText } from "./typeGuards";
 
 /**
  * Compares two Conditional expressions and returns a structured diff of their differences.
@@ -170,25 +179,26 @@ function diffGenericExpression<
   }
 
   // Check Common Properties (label, typeRef, description)
-  // Note: Cast to specific Partial<D> properties to satisfy TypeScript
+  const resultRecord = result as Record<string, DiffPropertyChange | undefined>;
+
   const labelA = exprA["@_label"];
   const labelB = exprB["@_label"];
   if (labelA !== labelB) {
-    (result as any).label = { property: "label", previousValue: labelA, currentValue: labelB };
+    resultRecord.label = { property: "label", previousValue: labelA, currentValue: labelB };
     hasChanges = true;
   }
 
   const typeRefA = exprA["@_typeRef"];
   const typeRefB = exprB["@_typeRef"];
   if (typeRefA !== typeRefB) {
-    (result as any).typeRef = { property: "typeRef", previousValue: typeRefA, currentValue: typeRefB };
+    resultRecord.typeRef = { property: "typeRef", previousValue: typeRefA, currentValue: typeRefB };
     hasChanges = true;
   }
 
-  const descA = (exprA as any).description?.__$$text;
-  const descB = (exprB as any).description?.__$$text;
+  const descA = getDescriptionText(exprA);
+  const descB = getDescriptionText(exprB);
   if ((descA ?? "") !== (descB ?? "")) {
-    (result as any).description = { property: "description", previousValue: descA, currentValue: descB };
+    resultRecord.description = { property: "description", previousValue: descA, currentValue: descB };
     hasChanges = true;
   }
 

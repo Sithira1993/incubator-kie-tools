@@ -22,6 +22,7 @@ import { DMN_LATEST__tBinding } from "@kie-tools/dmn-marshaller";
 import { BoxedInvocation, BoxedExpression } from "@kie-tools/boxed-expression-component/dist/api";
 import { BoxedExpressionDiff, DiffPropertyChange } from "../types";
 import { diffArrayElements } from "./diffUtils";
+import { getDescriptionText } from "./typeGuards";
 
 /**
  * Compares two Invocation expressions and returns a structured diff of their differences.
@@ -72,8 +73,8 @@ export function diffInvocation(
     hasChanges = true;
   }
 
-  const descA = (invA as any).description?.__$$text;
-  const descB = (invB as any).description?.__$$text;
+  const descA = getDescriptionText(invA);
+  const descB = getDescriptionText(invB);
   let descriptionChange: DiffPropertyChange | undefined;
   if ((descA ?? "") !== (descB ?? "")) {
     descriptionChange = { property: "description", previousValue: descA, currentValue: descB };

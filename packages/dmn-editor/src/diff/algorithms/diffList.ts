@@ -21,6 +21,7 @@ import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normali
 import { BoxedList, BoxedExpression } from "@kie-tools/boxed-expression-component/dist/api";
 import { BoxedExpressionDiff, DiffPropertyChange } from "../types";
 import { indexElementsById } from "./diffUtils";
+import { getDescriptionText } from "./typeGuards";
 
 /**
  * Compares two List expressions and returns a structured diff of their differences.
@@ -74,8 +75,8 @@ export function diffList(
     hasChanges = true;
   }
 
-  const descA = (listA as any).description?.__$$text;
-  const descB = (listB as any).description?.__$$text;
+  const descA = getDescriptionText(listA);
+  const descB = getDescriptionText(listB);
   let descriptionChange: DiffPropertyChange | undefined;
   if ((descA ?? "") !== (descB ?? "")) {
     descriptionChange = { property: "description", previousValue: descA, currentValue: descB };
