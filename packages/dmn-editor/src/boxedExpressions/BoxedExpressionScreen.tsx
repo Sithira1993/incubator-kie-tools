@@ -29,7 +29,6 @@ import { BoxedExpressionEditor } from "@kie-tools/boxed-expression-component/dis
 import { FeelIdentifiers } from "@kie-tools/dmn-feel-antlr4-parser";
 import { IdentifiersRefactor } from "@kie-tools/dmn-language-service";
 import {
-  DMN_LATEST__tBusinessKnowledgeModel,
   DMN_LATEST__tDecision,
   DMN_LATEST__tDefinitions,
   DMN_LATEST__tItemDefinition,
@@ -93,6 +92,10 @@ import {
 } from "../refactor/RefactorConfirmationDialog";
 import { EvaluationHighlightsBadge } from "../evaluationHighlights/EvaluationHighlightsBadge";
 import { useDmnEditor } from "../DmnEditorContext";
+import { BoxedExpressionDiffOverlay } from "../diff/components/BoxedExpressionDiffOverlay";
+import { useBoxedExpressionDiffDisplay } from "../diff/hooks/useBoxedExpressionDiffDisplay";
+import { useDecisionTableDiffWidths } from "../diff/hooks/useDecisionTableDiffWidths";
+import { drgElementToBoxedExpression } from "./drgElementToBoxedExpression";
 
 export function BoxedExpressionScreen({ container }: { container: React.RefObject<HTMLElement> }) {
   const { externalModelsByNamespace } = useExternalModels();
@@ -122,6 +125,10 @@ export function BoxedExpressionScreen({ container }: { container: React.RefObjec
 
   const { evaluationResultsByNodeId } = useDmnEditor();
   const isEvaluationHighlightsEnabled = useDmnEditorStore((s) => s.diagram.overlays.enableEvaluationHighlights);
+
+  const isDiffMode = useDmnEditorStore((s) => s.diff.isDiffModeEnabled);
+  const baseModel = useDmnEditorStore((s) => s.diff.baseModel);
+  const diffResult = useDmnEditorStore((s) => s.diff.diffResult);
 
   const onRequestFeelIdentifiers = useCallback(() => {
     return new FeelIdentifiers({
@@ -158,23 +165,6 @@ export function BoxedExpressionScreen({ container }: { container: React.RefObjec
   // More than that, they are responsible for maintaining an up-to-date ref for each one of
   // those values, so that batching works normally without having the `onChange` handlers be
   // recalculated, breaking batching.
-  const widthsById = useMemo(() => {
-    return (
-      thisDmn.model.definitions["dmndi:DMNDI"]?.["dmndi:DMNDiagram"]?.[drdIndex]["di:extension"]?.[
-        "kie:ComponentsWidthsExtension"
-      ]?.["kie:ComponentWidths"] ?? []
-    ).reduce((acc, c) => {
-      if (c["@_dmnElementRef"] === undefined) {
-        return acc;
-      } else {
-        return acc.set(
-          c["@_dmnElementRef"],
-          (c["kie:width"] ?? []).map((vv) => vv.__$$text)
-        );
-      }
-    }, new Map<string, number[]>());
-  }, [drdIndex, thisDmn.model.definitions]);
-
   const expression = useMemo(() => {
     if (!drgElement) {
       return undefined;
@@ -188,12 +178,55 @@ export function BoxedExpressionScreen({ container }: { container: React.RefObjec
     };
   }, [drgElement, drgElementIndex]);
 
-  const widthsByIdRef = useRef<Map<string, number[]>>(widthsById);
+  // Use custom hook to compute display expression for diff mode
+  const displayExpression = useBoxedExpressionDiffDisplay({
+    expression: expression?.boxedExpression,
+    isDiffMode,
+    baseModel,
+    activeDrgElementId,
+    diffResult,
+  });
+
+  const widthsById = useMemo(() => {
+    const diagram = thisDmn.model.definitions["dmndi:DMNDI"]?.["dmndi:DMNDiagram"]?.[drdIndex];
+    const extensions = diagram?.["di:extension"];
+    const componentsWidths = extensions?.["kie:ComponentsWidthsExtension"]?.["kie:ComponentWidths"];
+
+    const currentWidths = (componentsWidths ?? []).reduce((acc, c) => {
+      const rawRef = c["@_dmnElementRef"];
+      if (rawRef === undefined) {
+        return acc;
+      } else {
+        // Normalize ref to handle prefixes (e.g. #_uuid or namespace#_uuid)
+        const parts = rawRef.split("#");
+        const normalizedRef = parts.length > 1 ? parts[parts.length - 1] : rawRef;
+        return acc.set(
+          normalizedRef,
+          (c["kie:width"] ?? []).map((vv) => (typeof vv.__$$text === "number" ? vv.__$$text : 0))
+        );
+      }
+    }, new Map<string, number[]>());
+
+    return currentWidths;
+  }, [drdIndex, thisDmn.model.definitions]);
+
+  // Use custom hook to compute widths for merged Decision Tables in diff mode
+  const widthsByIdWithDiff = useDecisionTableDiffWidths({
+    baseWidths: widthsById,
+    isDiffMode,
+    baseModel,
+    activeDrgElementId,
+    displayExpression,
+    currentExpression: expression?.boxedExpression,
+    diffResult,
+  });
+
+  const widthsByIdRef = useRef<Map<string, number[]>>(widthsByIdWithDiff);
   const boxedExpressionRef = useRef<Normalized<BoxedExpression> | undefined>(expression?.boxedExpression);
 
   useEffect(() => {
-    widthsByIdRef.current = widthsById;
-  }, [widthsById]);
+    widthsByIdRef.current = widthsByIdWithDiff;
+  }, [widthsByIdWithDiff]);
 
   useEffect(() => {
     boxedExpressionRef.current = expression?.boxedExpression;
@@ -527,7 +560,7 @@ export function BoxedExpressionScreen({ container }: { container: React.RefObjec
           }}
         />
 
-        <div style={{ flexGrow: 1 }}>
+        <div style={{ flexGrow: 1, position: "relative" }} data-expression-holder-id={activeDrgElementId ?? ""}>
           <BoxedExpressionEditor
             beeGwtService={beeGwtService}
             pmmlDocuments={pmmlDocuments}
@@ -535,12 +568,12 @@ export function BoxedExpressionScreen({ container }: { container: React.RefObjec
             expressionHolderId={activeDrgElementId!}
             expressionHolderName={drgElement?.variable?.["@_name"] ?? drgElement?.["@_name"] ?? ""}
             expressionHolderTypeRef={drgElement?.variable?.["@_typeRef"] ?? expression?.boxedExpression?.["@_typeRef"]}
-            expression={expression?.boxedExpression}
+            expression={displayExpression}
             onExpressionChange={onExpressionChange}
             dataTypes={dataTypes}
             scrollableParentRef={container}
             onRequestFeelIdentifiers={onRequestFeelIdentifiers}
-            widthsById={widthsById}
+            widthsById={widthsByIdWithDiff}
             onWidthsChange={onWidthsChange}
             isReadOnly={settings.isReadOnly}
             evaluationHitsCountById={
@@ -549,52 +582,42 @@ export function BoxedExpressionScreen({ container }: { container: React.RefObjec
                 : undefined
             }
           />
+          {(() => {
+            if (!isDiffMode || !diffResult || !activeDrgElementId) {
+              return null;
+            }
+            const nodeDiff = diffResult.nodes.find(
+              (n) => n.id === activeDrgElementId || n.id.endsWith("#" + activeDrgElementId)
+            );
+            const boxedExpressionDiff = nodeDiff?.boxedExpressionDiff;
+
+            if (boxedExpressionDiff) {
+              const baseDrgElement = baseModel?.definitions.drgElement?.find((e) => e["@_id"] === activeDrgElementId);
+
+              if (
+                !baseDrgElement ||
+                (baseDrgElement.__$$element !== "decision" && baseDrgElement.__$$element !== "businessKnowledgeModel")
+              ) {
+                return null;
+              }
+
+              const baseExpression = drgElementToBoxedExpression(baseDrgElement);
+
+              return (
+                <BoxedExpressionDiffOverlay
+                  diff={boxedExpressionDiff}
+                  expressionHolderId={activeDrgElementId}
+                  baseExpression={baseExpression as Normalized<BoxedExpression> | undefined}
+                  currentExpression={displayExpression as Normalized<BoxedExpression> | undefined}
+                />
+              );
+            }
+            return null;
+          })()}
         </div>
       </>
     </>
   );
-}
-
-export function drgElementToBoxedExpression(
-  expressionHolder:
-    | (Normalized<DMN_LATEST__tDecision> & { __$$element: "decision" })
-    | (Normalized<DMN_LATEST__tBusinessKnowledgeModel> & { __$$element: "businessKnowledgeModel" })
-): Normalized<BoxedExpression> | undefined {
-  if (expressionHolder.__$$element === "businessKnowledgeModel") {
-    return expressionHolder.encapsulatedLogic
-      ? {
-          __$$element: "functionDefinition",
-          "@_label": expressionHolder.encapsulatedLogic["@_label"] ?? expressionHolder["@_name"],
-          "@_typeRef": expressionHolder.encapsulatedLogic["@_typeRef"] ?? expressionHolder.variable?.["@_typeRef"],
-          ...expressionHolder.encapsulatedLogic,
-        }
-      : {
-          __$$element: "functionDefinition",
-          "@_id": generateUuid(),
-          "@_kind": "FEEL",
-          expression: undefined!, // SPEC DISCREPANCY: Starting without an expression gives users the ability to select the expression type.
-          formalParameter: [],
-          "@_label": expressionHolder["@_name"],
-          "@_typeRef": expressionHolder.variable?.["@_typeRef"],
-        };
-  } else if (expressionHolder.__$$element === "decision") {
-    return expressionHolder.expression
-      ? {
-          ...expressionHolder.expression,
-          "@_label":
-            expressionHolder?.variable?.["@_name"] ??
-            expressionHolder.expression["@_label"] ??
-            expressionHolder?.["@_name"],
-          "@_typeRef": expressionHolder?.variable
-            ? expressionHolder?.variable["@_typeRef"]
-            : expressionHolder.expression["@_typeRef"],
-        }
-      : undefined;
-  } else {
-    throw new Error(
-      `Unknown __$$element of expressionHolder that has an expression '${(expressionHolder as any).__$$element}'.`
-    );
-  }
 }
 
 function determineInputsForDecision(

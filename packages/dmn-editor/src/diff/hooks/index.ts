@@ -17,9 +17,6 @@
  * under the License.
  */
 
-export * from "./DmnDiffUploader";
-export * from "./DmnDiffViewer";
-export * from "./DmnDiffChangeList";
-export * from "./DmnDiffChangeList_v2";
-export * from "./BoxedExpressionDiffOverlay";
-export * from "./DecisionTableDiffOverlay";
+export * from "./useBoxedExpressionDiffDisplay";
+export * from "./useDecisionTableDiffWidths";
+export * from "./useDmnDiffController";

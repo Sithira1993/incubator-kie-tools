@@ -66,6 +66,7 @@ export function useDmnDiffController() {
 
       dmnEditorStoreApi.setState((state) => {
         state.diff.deletedNodeIds = deletedNodeIds;
+        state.diff.diffResult = diffResult;
         state.diagram.diffsByNodeId = diffsByNodeId;
         state.diagram.diffsByEdgeId = diffsByEdgeId;
 
@@ -127,6 +128,7 @@ export function useDmnDiffController() {
       state.diff.baseModel = undefined;
       state.diff.changedModel = undefined;
       state.diff.deletedNodeIds = new Set();
+      state.diff.diffResult = undefined;
       state.diagram.diffsByNodeId = new Map();
       state.diagram.diffsByEdgeId = new Map();
       state.diagram.overlays.enableDiffHighlights = false;
