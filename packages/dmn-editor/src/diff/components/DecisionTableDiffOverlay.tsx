@@ -18,9 +18,11 @@
  */
 
 import * as React from "react";
-import { useEffect, useRef, useState } from "react";
-import { DecisionTableDiff } from "../types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { BoxedExpressionDiff, DecisionTableDiff, DecisionTableColumnDiff } from "../types";
 import { DMN15__tDecisionTable } from "@kie-tools/dmn-marshaller/dist/schemas/dmn-1_5/ts-gen/types";
+import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
+import { BoxedExpression } from "@kie-tools/boxed-expression-component/dist/api";
 import { DiffCellTooltip } from "./DiffCellTooltip";
 import { MIN_UUID_CLASS_LENGTH, MOUSEMOVE_THROTTLE_MS } from "../constants";
 import {
@@ -34,13 +36,13 @@ import {
   OVERLAY_MODIFIED_BORDER,
   OVERLAY_MODIFIED_TEXT,
 } from "../styles/diffHighlightStyles";
-import type { DecisionTableColumnDiff } from "../types";
+import { throttle, sanitizeForCSS } from "../utils/domUtils";
 
 export interface DecisionTableDiffOverlayProps {
-  diff: DecisionTableDiff;
+  diff: BoxedExpressionDiff;
   expressionHolderId: string;
   baseExpression: DMN15__tDecisionTable | undefined;
-  currentExpression: DMN15__tDecisionTable | undefined; // Can be undefined in edge cases
+  currentExpression: DMN15__tDecisionTable | undefined;
 }
 
 interface TooltipState {
@@ -70,19 +72,85 @@ function formatColumnDiffTooltip(columnDiff: DecisionTableColumnDiff, type: "pre
 }
 
 /**
- * Throttles a function to execute at most once per interval.
+ * Detects if an entire table was added or removed based on diff structure.
  */
-function throttle<T extends (...args: unknown[]) => void>(func: T, limit: number): T {
-  let inThrottle: boolean;
-  return ((...args: unknown[]) => {
-    if (!inThrottle) {
-      func(...args);
-      inThrottle = true;
-      setTimeout(() => (inThrottle = false), limit);
-    }
-  }) as T;
+function detectFullTableChange(diff: DecisionTableDiff): "added" | "removed" | null {
+  const hasOnly = (
+    section: { added?: string[]; removed?: string[]; modified?: Record<string, unknown> },
+    type: "added" | "removed"
+  ) => {
+    const hasItems = type === "added" ? (section.added?.length ?? 0) > 0 : (section.removed?.length ?? 0) > 0;
+    const noOpposite = type === "added" ? (section.removed?.length ?? 0) === 0 : (section.added?.length ?? 0) === 0;
+    const noModified = Object.keys(section.modified ?? {}).length === 0;
+    return hasItems && noOpposite && noModified;
+  };
+
+  const allAdded = hasOnly(diff.input, "added") && hasOnly(diff.output, "added") && hasOnly(diff.rules, "added");
+  const allRemoved =
+    hasOnly(diff.input, "removed") && hasOnly(diff.output, "removed") && hasOnly(diff.rules, "removed");
+
+  if (allAdded) return "added";
+  if (allRemoved) return "removed";
+  return null;
 }
 
+/**
+ * Converts an expressionReplacement diff into a DecisionTableDiff
+ * where all columns and rows are marked as added or removed.
+ */
+function convertExpressionReplacementToDecisionTableDiff(
+  diff: BoxedExpressionDiff,
+  baseExpression: DMN15__tDecisionTable | undefined,
+  currentExpression: DMN15__tDecisionTable | undefined
+): DecisionTableDiff | null {
+  if (diff.kind !== "expressionReplacement") {
+    return null;
+  }
+
+  const isAdded = diff.previousType === "undefined";
+  const isDeleted = diff.currentType === "undefined";
+
+  const currentAsBoxed = currentExpression as Normalized<BoxedExpression> | undefined;
+  const baseAsBoxed = baseExpression as Normalized<BoxedExpression> | undefined;
+
+  if (isAdded && currentAsBoxed?.__$$element !== "decisionTable") {
+    return null;
+  }
+  if (isDeleted && baseAsBoxed?.__$$element !== "decisionTable") {
+    return null;
+  }
+
+  const table = (isAdded ? currentExpression : baseExpression) as DMN15__tDecisionTable;
+
+  const inputIds = (table.input ?? []).map((col) => col["@_id"]).filter((id): id is string => !!id);
+  const outputIds = (table.output ?? []).map((col) => col["@_id"]).filter((id): id is string => !!id);
+  const annotationIds = (table.annotation ?? []).map((col) => col["@_name"]).filter((id): id is string => !!id);
+  const ruleIds = (table.rule ?? []).map((rule) => rule["@_id"]).filter((id): id is string => !!id);
+
+  return {
+    kind: "decisionTable",
+    input: {
+      added: isAdded ? inputIds : [],
+      removed: isDeleted ? inputIds : [],
+      modified: {},
+    },
+    output: {
+      added: isAdded ? outputIds : [],
+      removed: isDeleted ? outputIds : [],
+      modified: {},
+    },
+    annotation: {
+      added: isAdded ? annotationIds : [],
+      removed: isDeleted ? annotationIds : [],
+      modified: {},
+    },
+    rules: {
+      added: isAdded ? ruleIds : [],
+      removed: isDeleted ? ruleIds : [],
+      modified: {},
+    },
+  };
+}
 /**
  * CSS-based diff overlay for Decision Tables.
  */
@@ -92,6 +160,17 @@ export function DecisionTableDiffOverlay({
   baseExpression,
   currentExpression,
 }: DecisionTableDiffOverlayProps) {
+  // Convert expressionReplacement to DecisionTableDiff if needed
+  const decisionTableDiff = useMemo<DecisionTableDiff | null>(() => {
+    if (diff.kind === "expressionReplacement") {
+      return convertExpressionReplacementToDecisionTableDiff(diff, baseExpression, currentExpression);
+    }
+    if (diff.kind === "decisionTable") {
+      return diff;
+    }
+    return null;
+  }, [diff, baseExpression, currentExpression]);
+
   const styleElementRef = useRef<HTMLStyleElement | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState>({
     isVisible: false,
@@ -103,27 +182,16 @@ export function DecisionTableDiffOverlay({
 
   const diffMapRef = useRef<Map<string, CellDiffData>>(new Map());
 
-  /*
-   * Robust ID sanitization for CSS classes.
-   * Fallback to a simple replacement if CSS.escape fails (very rare).
-   */
-  const sanitizeForCSS = (id: string): string => {
-    try {
-      return CSS.escape(id);
-    } catch (error) {
-      // Fallback: replace invalid chars with a safe sequence
-      return id.replace(/[^a-zA-Z0-9_-]/g, (match) => `_${match.charCodeAt(0).toString(16)}_`);
-    }
-  };
-
   useEffect(() => {
+    if (!decisionTableDiff) {
+      return;
+    }
+
     if (!styleElementRef.current) {
       styleElementRef.current = document.createElement("style");
       styleElementRef.current.id = `dmn-diff-overlay-${expressionHolderId}`;
       document.head.appendChild(styleElementRef.current);
     }
-
-    // Generate styles only when diff/expression changes.
 
     const styles: string[] = [];
     diffMapRef.current.clear();
@@ -144,6 +212,27 @@ export function DecisionTableDiffOverlay({
       }
       return undefined;
     };
+
+    // Detect full table add/remove
+    const fullTableChange = detectFullTableChange(decisionTableDiff);
+
+    if (fullTableChange) {
+      const backgroundColor = fullTableChange === "added" ? OVERLAY_ADDED_BG : OVERLAY_REMOVED_BG;
+      const borderColor = fullTableChange === "added" ? OVERLAY_ADDED_BORDER : OVERLAY_REMOVED_BORDER;
+      const opacity = fullTableChange === "added" ? 1 : OVERLAY_REMOVED_OPACITY;
+
+      styles.push(`
+        [data-expression-holder-id="${expressionHolderId}"] th,
+        [data-expression-holder-id="${expressionHolderId}"] td {
+          background-color: ${backgroundColor} !important;
+          border: 2px solid ${borderColor} !important;
+          opacity: ${opacity};
+        }
+        [data-expression-holder-id="${expressionHolderId}"] table {
+          border: 2px solid ${borderColor} !important;
+        }
+      `);
+    }
 
     const addColumnStyles = (
       ids: string[],
@@ -182,13 +271,13 @@ export function DecisionTableDiffOverlay({
       });
     };
 
-    addColumnStyles(diff.input?.added ?? [], "input", "added");
-    addColumnStyles(diff.output?.added ?? [], "output", "added");
-    addColumnStyles(diff.annotation?.added ?? [], "annotation", "added");
+    addColumnStyles(decisionTableDiff.input?.added ?? [], "input", "added");
+    addColumnStyles(decisionTableDiff.output?.added ?? [], "output", "added");
+    addColumnStyles(decisionTableDiff.annotation?.added ?? [], "annotation", "added");
 
-    addColumnStyles(diff.input?.removed ?? [], "input", "removed");
-    addColumnStyles(diff.output?.removed ?? [], "output", "removed");
-    addColumnStyles(diff.annotation?.removed ?? [], "annotation", "removed");
+    addColumnStyles(decisionTableDiff.input?.removed ?? [], "input", "removed");
+    addColumnStyles(decisionTableDiff.output?.removed ?? [], "output", "removed");
+    addColumnStyles(decisionTableDiff.annotation?.removed ?? [], "annotation", "removed");
 
     const addModifiedColumnStyles = (
       modifiedDiffs: Record<string, DecisionTableColumnDiff>,
@@ -227,11 +316,11 @@ export function DecisionTableDiffOverlay({
       });
     };
 
-    addModifiedColumnStyles(diff.input?.modified ?? {}, "input");
-    addModifiedColumnStyles(diff.output?.modified ?? {}, "output");
-    addModifiedColumnStyles(diff.annotation?.modified ?? {}, "annotation");
+    addModifiedColumnStyles(decisionTableDiff.input?.modified ?? {}, "input");
+    addModifiedColumnStyles(decisionTableDiff.output?.modified ?? {}, "output");
+    addModifiedColumnStyles(decisionTableDiff.annotation?.modified ?? {}, "annotation");
 
-    Object.entries(diff.rules?.modified ?? {}).forEach(([ruleId, ruleDiff]) => {
+    Object.entries(decisionTableDiff.rules?.modified ?? {}).forEach(([ruleId, ruleDiff]) => {
       if (!ruleId || typeof ruleId !== "string") return;
       const sanitizedRuleId = sanitizeForCSS(ruleId);
 
@@ -287,7 +376,7 @@ export function DecisionTableDiffOverlay({
       addEntryStyles(ruleDiff?.annotationEntries, "annotation");
     });
 
-    (diff.rules?.removed ?? []).forEach((ruleId: string) => {
+    (decisionTableDiff.rules?.removed ?? []).forEach((ruleId: string) => {
       if (!ruleId || typeof ruleId !== "string") return;
       const sanitizedRuleId = sanitizeForCSS(ruleId);
       styles.push(`
@@ -302,7 +391,7 @@ export function DecisionTableDiffOverlay({
        `);
     });
 
-    (diff.rules?.added ?? []).forEach((ruleId: string) => {
+    (decisionTableDiff.rules?.added ?? []).forEach((ruleId: string) => {
       if (!ruleId || typeof ruleId !== "string") return;
       const sanitizedRuleId = sanitizeForCSS(ruleId);
       styles.push(`
@@ -403,7 +492,7 @@ export function DecisionTableDiffOverlay({
         tableContainer.removeEventListener("mousemove", handleMouseMove);
       }
     };
-  }, [diff, expressionHolderId, currentExpression]);
+  }, [decisionTableDiff, expressionHolderId, currentExpression]);
 
   if (!currentExpression) {
     return null;

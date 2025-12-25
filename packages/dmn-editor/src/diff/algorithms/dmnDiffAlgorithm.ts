@@ -337,6 +337,7 @@ function diffNodes(mapA: Map<string, NodeSnapshot>, mapB: Map<string, NodeSnapsh
     const nodeB = mapB.get(id);
 
     if (nodeA && !nodeB) {
+      const expressionDiff = diffBoxedExpression(nodeA.expression, undefined);
       diffs.push({
         kind: "node",
         id,
@@ -345,11 +346,13 @@ function diffNodes(mapA: Map<string, NodeSnapshot>, mapB: Map<string, NodeSnapsh
         changeType: DiffChangeType.REMOVED,
         position: nodeA.position,
         size: nodeA.size,
+        boxedExpressionDiff: expressionDiff,
       });
       continue;
     }
 
     if (!nodeA && nodeB) {
+      const expressionDiff = diffBoxedExpression(undefined, nodeB.expression);
       diffs.push({
         kind: "node",
         id,
@@ -358,6 +361,7 @@ function diffNodes(mapA: Map<string, NodeSnapshot>, mapB: Map<string, NodeSnapsh
         changeType: DiffChangeType.ADDED,
         position: nodeB.position,
         size: nodeB.size,
+        boxedExpressionDiff: expressionDiff,
       });
       continue;
     }

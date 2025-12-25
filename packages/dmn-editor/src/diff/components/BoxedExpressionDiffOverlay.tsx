@@ -37,11 +37,15 @@ export function BoxedExpressionDiffOverlay({
   baseExpression,
   currentExpression,
 }: BoxedExpressionDiffOverlayProps) {
-  if (!diff || !currentExpression) {
+  if (!diff) {
     return null;
   }
 
-  if (diff.kind === "decisionTable" && currentExpression.__$$element === "decisionTable") {
+  // Route to Decision Table overlay for both granular diffs and expressionReplacement
+  if (
+    (diff.kind === "decisionTable" || diff.kind === "expressionReplacement") &&
+    currentExpression?.__$$element === "decisionTable"
+  ) {
     return (
       <DecisionTableDiffOverlay
         diff={diff}

@@ -594,14 +594,16 @@ export function BoxedExpressionScreen({ container }: { container: React.RefObjec
             if (boxedExpressionDiff) {
               const baseDrgElement = baseModel?.definitions.drgElement?.find((e) => e["@_id"] === activeDrgElementId);
 
+              // Allow rendering for new nodes (baseDrgElement undefined)
               if (
-                !baseDrgElement ||
-                (baseDrgElement.__$$element !== "decision" && baseDrgElement.__$$element !== "businessKnowledgeModel")
+                baseDrgElement &&
+                baseDrgElement.__$$element !== "decision" &&
+                baseDrgElement.__$$element !== "businessKnowledgeModel"
               ) {
                 return null;
               }
 
-              const baseExpression = drgElementToBoxedExpression(baseDrgElement);
+              const baseExpression = baseDrgElement ? drgElementToBoxedExpression(baseDrgElement) : undefined;
 
               return (
                 <BoxedExpressionDiffOverlay
