@@ -129,6 +129,7 @@ export interface ExpressionReplacementDiff {
 
 export interface LiteralExpressionDiff {
   kind: "literalExpression";
+  label?: DiffPropertyChange; // Added for name changes
   text?: DiffPropertyChange;
   typeRef?: DiffPropertyChange;
   description?: DiffPropertyChange;

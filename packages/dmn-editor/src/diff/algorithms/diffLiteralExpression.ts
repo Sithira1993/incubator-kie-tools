@@ -47,6 +47,13 @@ export function diffLiteralExpression(
     hasChanges = true;
   }
 
+  const labelA = exprA["@_label"];
+  const labelB = exprB["@_label"];
+  if (labelA !== labelB) {
+    changes.label = { property: "label", previousValue: labelA, currentValue: labelB };
+    hasChanges = true;
+  }
+
   const typeRefA = exprA["@_typeRef"];
   const typeRefB = exprB["@_typeRef"];
   if (typeRefA !== typeRefB) {
@@ -65,6 +72,17 @@ export function diffLiteralExpression(
   const langB = exprB["@_expressionLanguage"];
   if (langA !== langB) {
     changes.expressionLanguage = { property: "expressionLanguage", previousValue: langA, currentValue: langB };
+    hasChanges = true;
+  }
+
+  const importedValuesA = exprA.importedValues;
+  const importedValuesB = exprB.importedValues;
+  if (JSON.stringify(importedValuesA) !== JSON.stringify(importedValuesB)) {
+    changes.importedValues = {
+      property: "importedValues",
+      previousValue: importedValuesA,
+      currentValue: importedValuesB,
+    };
     hasChanges = true;
   }
 
