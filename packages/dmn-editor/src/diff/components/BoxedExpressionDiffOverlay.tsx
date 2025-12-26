@@ -22,8 +22,9 @@ import { BoxedExpressionDiff } from "../types";
 import { DMN15__tDecisionTable } from "@kie-tools/dmn-marshaller/dist/schemas/dmn-1_5/ts-gen/types";
 import { DecisionTableDiffOverlay } from "./DecisionTableDiffOverlay";
 import { LiteralExpressionDiffOverlay } from "./LiteralExpressionDiffOverlay";
+import { RelationDiffOverlay } from "./RelationDiffOverlay";
 import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
-import { BoxedExpression } from "@kie-tools/boxed-expression-component/dist/api";
+import { BoxedExpression, BoxedRelation } from "@kie-tools/boxed-expression-component/dist/api";
 
 export interface BoxedExpressionDiffOverlayProps {
   diff: BoxedExpressionDiff | undefined;
@@ -65,7 +66,22 @@ export function BoxedExpressionDiffOverlay({
     return <LiteralExpressionDiffOverlay diff={diff} expressionHolderId={expressionHolderId} />;
   }
 
-  // Future: Add other expression overlays here (Context, Relation, Invocation, etc.)
+  // Route to Relation overlay
+  if (
+    diff.kind === "relation" ||
+    (diff.kind === "expressionReplacement" && currentExpression?.__$$element === "relation")
+  ) {
+    return (
+      <RelationDiffOverlay
+        diff={diff}
+        expressionHolderId={expressionHolderId}
+        baseExpression={baseExpression as Normalized<BoxedRelation>}
+        currentExpression={currentExpression as Normalized<BoxedRelation>}
+      />
+    );
+  }
+
+  // Future: Add other expression overlays here (Context, Invocation, etc.)
 
   return null;
 }

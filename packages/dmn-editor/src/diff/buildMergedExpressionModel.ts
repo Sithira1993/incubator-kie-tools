@@ -18,8 +18,13 @@
  */
 
 import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
-import { BoxedDecisionTable, BoxedExpression } from "@kie-tools/boxed-expression-component/dist/api";
-import { BoxedExpressionDiff, DecisionTableDiff } from "./types";
+import {
+  BoxedDecisionTable,
+  BoxedExpression,
+  BoxedRelation,
+  generateUuid,
+} from "@kie-tools/boxed-expression-component/dist/api";
+import { BoxedExpressionDiff, DecisionTableDiff, RelationDiff } from "./types";
 import {
   DMN15__tUnaryTests,
   DMN15__tLiteralExpression,
@@ -51,246 +56,400 @@ export function buildMergedExpression(
     return buildMergedDecisionTable(baseExpression as Normalized<BoxedDecisionTable>, currentExpression, diff);
   }
 
-  // Future: Add other expression types here (context, relation, etc.)
+  if (diff.kind === "relation" && currentExpression.__$$element === "relation") {
+    return buildMergedRelation(baseExpression as Normalized<BoxedRelation>, currentExpression, diff);
+  }
 
   return currentExpression;
 }
 
 /**
  * Builds a merged Decision Table that includes removed rows/columns.
+ *
+ * Algorithm:
+ * 1. Start with current model (priority to changed model)
+ * 2. Add removed columns/rows as ghosts at their original positions
+ * 3. Backfill cells for removed columns in all rows
  */
 export function buildMergedDecisionTable(
   baseExpression: Normalized<BoxedDecisionTable> | undefined,
   currentExpression: Normalized<BoxedDecisionTable> | undefined,
   diff: DecisionTableDiff
 ): Normalized<BoxedDecisionTable> | undefined {
-  if (!currentExpression) {
-    return undefined;
+  if (!currentExpression || !baseExpression) {
+    return currentExpression;
   }
 
   const hasRemovedRows = diff.rules.removed.length > 0;
   const hasRemovedColumns =
     diff.input.removed.length > 0 || diff.output.removed.length > 0 || (diff.annotation?.removed.length ?? 0) > 0;
 
-  if (!baseExpression || (!hasRemovedRows && !hasRemovedColumns)) {
+  if (!hasRemovedRows && !hasRemovedColumns) {
     return currentExpression;
   }
 
   const merged: Normalized<BoxedDecisionTable> = structuredClone(currentExpression);
 
+  // Step 1: Merge columns
   if (hasRemovedColumns) {
-    merged.input = mergeColumns(
+    merged.input = mergeOrderedList(
       baseExpression.input ?? [],
       merged.input ?? [],
-      diff.input.removed
+      diff.input.removed,
+      "@_id",
+      "column"
     ) as typeof merged.input;
 
-    merged.output = mergeColumns(
+    merged.output = mergeOrderedList(
       baseExpression.output ?? [],
       merged.output ?? [],
-      diff.output.removed
+      diff.output.removed,
+      "@_id",
+      "column"
     ) as typeof merged.output;
 
     if (diff.annotation?.removed.length) {
-      merged.annotation = mergeAnnotationColumns(
+      merged.annotation = mergeOrderedList(
         baseExpression.annotation ?? [],
         merged.annotation ?? [],
-        diff.annotation.removed
+        diff.annotation.removed,
+        "@_name",
+        "column"
       ) as typeof merged.annotation;
     }
   }
 
+  // Step 2: Merge rows
   if (hasRemovedRows) {
-    merged.rule = mergeRules(baseExpression.rule ?? [], merged.rule ?? [], diff.rules.removed);
+    merged.rule = mergeOrderedList(baseExpression.rule ?? [], merged.rule ?? [], diff.rules.removed, "@_id", "row");
   }
 
-  // Backfill cells for removed columns in existing rules
-
-  if (hasRemovedColumns && baseExpression?.rule && merged.rule) {
-    const baseRuleMap = new Map(baseExpression.rule.map((r) => [r["@_id"], r]));
-
+  // Step 3: Backfill cells for removed columns in all rows
+  if (hasRemovedColumns && merged.rule) {
+    const baseRuleMap = new Map(baseExpression.rule?.map((r) => [r["@_id"], r]) ?? []);
     const baseInputIndexById = new Map(baseExpression.input?.map((col, idx) => [col["@_id"], idx]) ?? []);
     const baseOutputIndexById = new Map(baseExpression.output?.map((col, idx) => [col["@_id"], idx]) ?? []);
     const baseAnnotationIndexByName = new Map(baseExpression.annotation?.map((col, idx) => [col["@_name"], idx]) ?? []);
 
     merged.rule.forEach((rule) => {
-      if (!rule["@_id"]) {
-        return;
-      }
+      const ruleId = rule["@_id"];
+      if (!ruleId) return;
 
-      const baseRule = baseRuleMap.get(rule["@_id"]);
+      const baseRule = baseRuleMap.get(ruleId);
 
+      // Backfill input cells at correct positions
       diff.input.removed.forEach((removedColId) => {
-        const baseColIndex = baseInputIndexById.get(removedColId) ?? -1;
-        if (baseColIndex !== -1) {
+        const baseColIndex = baseInputIndexById.get(removedColId);
+        if (baseColIndex !== undefined) {
           const originalValue =
             baseRule?.inputEntry?.[baseColIndex] ??
             ({ text: { __$$text: DEFAULT_REMOVED_INPUT_CELL_VALUE } } as Normalized<DMN15__tUnaryTests>);
-          if (!rule.inputEntry) rule.inputEntry = [];
-          rule.inputEntry.push(structuredClone(originalValue));
+
+          // Find position of this removed column in merged.input
+          const mergedColIndex = merged.input?.findIndex((col) => col["@_id"] === removedColId) ?? -1;
+          if (mergedColIndex !== -1) {
+            if (!rule.inputEntry) rule.inputEntry = [];
+            rule.inputEntry.splice(mergedColIndex, 0, structuredClone(originalValue));
+          }
         }
       });
 
+      // Backfill output cells at correct positions
       diff.output.removed.forEach((removedColId) => {
-        const baseColIndex = baseOutputIndexById.get(removedColId) ?? -1;
-        if (baseColIndex !== -1) {
+        const baseColIndex = baseOutputIndexById.get(removedColId);
+        if (baseColIndex !== undefined) {
           const originalValue =
             baseRule?.outputEntry?.[baseColIndex] ??
             ({ text: { __$$text: DEFAULT_REMOVED_OUTPUT_CELL_VALUE } } as Normalized<DMN15__tLiteralExpression>);
-          if (!rule.outputEntry) rule.outputEntry = [];
-          rule.outputEntry.push(structuredClone(originalValue));
+
+          // Find position of this removed column in merged.output
+          const mergedColIndex = merged.output?.findIndex((col) => col["@_id"] === removedColId) ?? -1;
+          if (mergedColIndex !== -1) {
+            if (!rule.outputEntry) rule.outputEntry = [];
+            rule.outputEntry.splice(mergedColIndex, 0, structuredClone(originalValue));
+          }
         }
       });
 
-      if (diff.annotation?.removed) {
-        diff.annotation.removed.forEach((removedColName) => {
-          const baseColIndex = baseAnnotationIndexByName.get(removedColName) ?? -1;
-          if (baseColIndex !== -1) {
-            const originalValue =
-              baseRule?.annotationEntry?.[baseColIndex] ??
-              ({ text: { __$$text: DEFAULT_REMOVED_OUTPUT_CELL_VALUE } } as Normalized<DMN15__tRuleAnnotation>);
+      // Backfill annotation cells at correct positions
+      diff.annotation?.removed.forEach((removedColName) => {
+        const baseColIndex = baseAnnotationIndexByName.get(removedColName);
+        if (baseColIndex !== undefined) {
+          const originalValue =
+            baseRule?.annotationEntry?.[baseColIndex] ??
+            ({ text: { __$$text: DEFAULT_REMOVED_OUTPUT_CELL_VALUE } } as Normalized<DMN15__tRuleAnnotation>);
+
+          // Find position of this removed column in merged.annotation
+          const mergedColIndex = merged.annotation?.findIndex((col) => col["@_name"] === removedColName) ?? -1;
+          if (mergedColIndex !== -1) {
             if (!rule.annotationEntry) rule.annotationEntry = [];
-            rule.annotationEntry.push(structuredClone(originalValue));
+            rule.annotationEntry.splice(mergedColIndex, 0, structuredClone(originalValue));
           }
-        });
-      }
+        }
+      });
     });
   }
+
+  console.log("MERGED DECISION TABLE:", JSON.stringify(merged, null, 2));
 
   return merged;
 }
 
 /**
- * Merges columns by inserting removed items at their original positions.
+ * Builds a merged Relation that includes removed rows/columns.
+ *
+ * Algorithm:
+ * 1. Start with current model (priority to changed model)
+ * 2. Add removed columns/rows as ghosts at their original positions
+ * 3. Backfill cells for all rows to match merged columns
  */
-function mergeColumns<T extends { "@_id"?: string }>(
-  baseColumns: Normalized<T>[],
-  currentColumns: Normalized<T>[],
-  removedIds: string[]
-): Normalized<T>[] {
-  if (removedIds.length === 0) {
-    return currentColumns;
+export function buildMergedRelation(
+  baseExpression: Normalized<BoxedRelation> | undefined,
+  currentExpression: Normalized<BoxedRelation> | undefined,
+  diff: RelationDiff
+): Normalized<BoxedRelation> | undefined {
+  if (!currentExpression || !baseExpression) {
+    return currentExpression;
   }
 
-  const currentIdSet = new Set(currentColumns.map((col) => col["@_id"]).filter((id): id is string => !!id));
+  const hasRemovedRows = diff.rows.removed.length > 0;
+  const hasRemovedColumns = diff.columns.removed.length > 0;
 
-  const result: Normalized<T>[] = [];
-
-  for (const baseColumn of baseColumns) {
-    const columnId = baseColumn["@_id"];
-
-    if (removedIds.includes(columnId ?? "")) {
-      const removedColumn = structuredClone(baseColumn) as Normalized<T> & RemovedItemMetadata;
-      removedColumn.__isRemoved = true;
-      removedColumn.__removedType = "column";
-      result.push(removedColumn as Normalized<T>);
-    } else if (currentIdSet.has(columnId ?? "")) {
-      const currentColumn = currentColumns.find((col) => col["@_id"] === columnId);
-      if (currentColumn) {
-        result.push(currentColumn);
-      }
-    }
+  if (!hasRemovedRows && !hasRemovedColumns) {
+    return currentExpression;
   }
 
-  for (const currentColumn of currentColumns) {
-    const columnId = currentColumn["@_id"];
-    if (columnId && !baseColumns.some((col) => col["@_id"] === columnId)) {
-      result.push(currentColumn);
-    }
+  const merged: Normalized<BoxedRelation> = structuredClone(currentExpression);
+
+  // Step 1: Merge columns
+  if (hasRemovedColumns) {
+    merged.column = mergeOrderedList(
+      baseExpression.column ?? [],
+      merged.column ?? [],
+      diff.columns.removed,
+      "@_id",
+      "column"
+    ) as typeof merged.column;
   }
 
-  return result;
+  // Step 2: Merge rows
+  if (hasRemovedRows) {
+    merged.row = mergeOrderedList(
+      baseExpression.row ?? [],
+      merged.row ?? [],
+      diff.rows.removed,
+      "@_id",
+      "row"
+    ) as typeof merged.row;
+  }
+
+  // Backfill cells for all rows to match merged columns
+  if (merged.row && merged.column) {
+    const baseRowMap = new Map(baseExpression.row?.map((r) => [r["@_id"], r]) ?? []);
+    const currentRowMap = new Map(currentExpression.row?.map((r) => [r["@_id"], r]) ?? []);
+    const baseColIndexById = new Map(baseExpression.column?.map((c, i) => [c["@_id"], i]) ?? []);
+    const currentColIndexById = new Map(currentExpression.column?.map((c, i) => [c["@_id"], i]) ?? []);
+
+    const addedColumnIds = new Set(diff.columns.added);
+    const removedColumnIds = new Set(diff.columns.removed);
+    const addedRowIds = new Set(diff.rows.added);
+    const removedRowIds = new Set(diff.rows.removed);
+
+    merged.row = merged.row.map((row) => {
+      const rowId = row["@_id"];
+      if (!rowId) return row;
+
+      const isRemovedRow = removedRowIds.has(rowId);
+      const isAddedRow = addedRowIds.has(rowId);
+
+      const newExpressionList: Normalized<BoxedExpression>[] = [];
+
+      // Determine correct cell value for each column
+      merged.column?.forEach((col) => {
+        const colId = col["@_id"];
+        if (!colId) return;
+
+        const isRemovedColumn = removedColumnIds.has(colId);
+        const isAddedColumn = addedColumnIds.has(colId);
+
+        // Decision tree based on diff information
+        if (isRemovedColumn) {
+          // Get from base model
+          const baseRow = baseRowMap.get(rowId);
+          const baseColIndex = baseColIndexById.get(colId);
+          if (baseRow && baseColIndex !== undefined && baseRow.expression?.[baseColIndex]) {
+            newExpressionList.push(structuredClone(baseRow.expression[baseColIndex]) as Normalized<BoxedExpression>);
+          } else {
+            // Removed column + added row = empty cell
+            newExpressionList.push({
+              __$$element: "literalExpression",
+              "@_id": generateUuid(),
+              text: { __$$text: "" },
+            } as unknown as Normalized<BoxedExpression>);
+          }
+        } else if (isAddedColumn) {
+          // Added column: create NEW cell with NEW ID (don't reuse cell from current model)
+          const currentRow = currentRowMap.get(rowId);
+          const currentColIndex = currentColIndexById.get(colId);
+
+          if (currentRow && currentColIndex !== undefined && currentRow.expression?.[currentColIndex]) {
+            const currentCell = currentRow.expression[currentColIndex];
+
+            // Clone the cell but with a NEW ID to prevent false "modified" detection
+            if (currentCell.__$$element === "literalExpression") {
+              newExpressionList.push({
+                __$$element: "literalExpression",
+                "@_id": generateUuid(),
+                text: { __$$text: currentCell.text?.__$$text ?? "" },
+              } as unknown as Normalized<BoxedExpression>);
+            } else {
+              // For non-literal expressions, clone the entire structure with new ID
+              const clonedCell = structuredClone(currentCell) as Normalized<BoxedExpression>;
+              clonedCell["@_id"] = generateUuid();
+              newExpressionList.push(clonedCell);
+            }
+          } else {
+            // Added column + removed row = empty
+            newExpressionList.push({
+              __$$element: "literalExpression",
+              "@_id": generateUuid(),
+              text: { __$$text: "" },
+            } as unknown as Normalized<BoxedExpression>);
+          }
+        } else if (isRemovedRow) {
+          // Removed row: always get from base model
+          const baseRow = baseRowMap.get(rowId);
+          const baseColIndex = baseColIndexById.get(colId);
+          if (baseRow && baseColIndex !== undefined && baseRow.expression?.[baseColIndex]) {
+            newExpressionList.push(structuredClone(baseRow.expression[baseColIndex]) as Normalized<BoxedExpression>);
+          } else {
+            // Should not happen, but handle gracefully
+            newExpressionList.push({
+              __$$element: "literalExpression",
+              "@_id": generateUuid(),
+              text: { __$$text: "" },
+            } as unknown as Normalized<BoxedExpression>);
+          }
+        } else if (isAddedRow) {
+          // Added row: create NEW cells with NEW IDs (same as added columns)
+          const currentRow = currentRowMap.get(rowId);
+          const currentColIndex = currentColIndexById.get(colId);
+
+          if (currentRow && currentColIndex !== undefined && currentRow.expression?.[currentColIndex]) {
+            const currentCell = currentRow.expression[currentColIndex];
+
+            // Clone the cell but with a NEW ID to prevent false "modified" detection
+            if (currentCell.__$$element === "literalExpression") {
+              newExpressionList.push({
+                __$$element: "literalExpression",
+                "@_id": generateUuid(),
+                text: { __$$text: currentCell.text?.__$$text ?? "" },
+              } as unknown as Normalized<BoxedExpression>);
+            } else {
+              // For non-literal expressions, clone the entire structure with new ID
+              const clonedCell = structuredClone(currentCell) as Normalized<BoxedExpression>;
+              clonedCell["@_id"] = generateUuid();
+              newExpressionList.push(clonedCell);
+            }
+          } else {
+            // Should not happen, but handle gracefully
+            newExpressionList.push({
+              __$$element: "literalExpression",
+              "@_id": generateUuid(),
+              text: { __$$text: "" },
+            } as unknown as Normalized<BoxedExpression>);
+          }
+        } else {
+          // Both row and column exist in base and current: get from current (may be modified or unchanged)
+          const currentRow = currentRowMap.get(rowId);
+          const currentColIndex = currentColIndexById.get(colId);
+          if (currentRow && currentColIndex !== undefined && currentRow.expression?.[currentColIndex]) {
+            newExpressionList.push(currentRow.expression[currentColIndex] as Normalized<BoxedExpression>);
+          } else {
+            // Fallback to base if not in current (shouldn't happen for existing row+column)
+            const baseRow = baseRowMap.get(rowId);
+            const baseColIndex = baseColIndexById.get(colId);
+            if (baseRow && baseColIndex !== undefined && baseRow.expression?.[baseColIndex]) {
+              newExpressionList.push(structuredClone(baseRow.expression[baseColIndex]) as Normalized<BoxedExpression>);
+            } else {
+              newExpressionList.push({
+                __$$element: "literalExpression",
+                "@_id": generateUuid(),
+                text: { __$$text: "" },
+              } as unknown as Normalized<BoxedExpression>);
+            }
+          }
+        }
+      });
+
+      row.expression = newExpressionList;
+      return row;
+    });
+  }
+
+  console.log("MERGED RELATION:", JSON.stringify(merged, null, 2));
+
+  return merged;
 }
 
 /**
- * Merges annotation columns by inserting removed items at their original positions.
+ * Merges an ordered list by inserting removed items at their original positions.
+ *
+ * Simple algorithm:
+ * 1. Start with current items
+ * 2. For each removed item from base:
+ *    - Find its position in base
+ *    - Find the nearest predecessor that exists in merged
+ *    - Insert after the predecessor (or at original position if no predecessor)
  */
-function mergeAnnotationColumns<T extends { "@_name"?: string }>(
-  baseColumns: Normalized<T>[],
-  currentColumns: Normalized<T>[],
-  removedNames: string[]
+function mergeOrderedList<T extends Record<string, unknown>>(
+  baseItems: Normalized<T>[],
+  currentItems: Normalized<T>[],
+  removedIds: string[],
+  idKey: "@_id" | "@_name",
+  removedType: "row" | "column"
 ): Normalized<T>[] {
-  if (removedNames.length === 0) {
-    return currentColumns;
-  }
+  const merged = [...currentItems];
 
-  const currentNameSet = new Set(currentColumns.map((col) => col["@_name"]).filter((name): name is string => !!name));
+  baseItems.forEach((baseItem, baseIndex) => {
+    const itemId = baseItem[idKey] as string | undefined;
+    if (!itemId || !removedIds.includes(itemId)) {
+      return;
+    }
 
-  const result: Normalized<T>[] = [];
-
-  for (const baseColumn of baseColumns) {
-    const columnName = baseColumn["@_name"];
-
-    if (removedNames.includes(columnName ?? "")) {
-      const removedColumn = structuredClone(baseColumn) as Normalized<T> & RemovedItemMetadata;
-      removedColumn.__isRemoved = true;
-      removedColumn.__removedType = "column";
-      result.push(removedColumn as Normalized<T>);
-    } else if (currentNameSet.has(columnName ?? "")) {
-      const currentColumn = currentColumns.find((col) => col["@_name"] === columnName);
-      if (currentColumn) {
-        result.push(currentColumn);
+    // Find where to insert: after the nearest predecessor that exists in merged
+    let insertAfterIndex = -1;
+    for (let i = baseIndex - 1; i >= 0; i--) {
+      const predecessorId = baseItems[i][idKey] as string | undefined;
+      if (predecessorId) {
+        const foundIndex = merged.findIndex((item) => item[idKey] === predecessorId);
+        if (foundIndex !== -1) {
+          insertAfterIndex = foundIndex;
+          break;
+        }
       }
     }
-  }
 
-  for (const currentColumn of currentColumns) {
-    const columnName = currentColumn["@_name"];
-    if (columnName && !baseColumns.some((col) => col["@_name"] === columnName)) {
-      result.push(currentColumn);
+    // Create ghost item
+    const ghost: Normalized<T> & RemovedItemMetadata = structuredClone(baseItem) as Normalized<T> & RemovedItemMetadata;
+    ghost.__isRemoved = true;
+    ghost.__removedType = removedType;
+
+    // Insert at the right position
+    if (insertAfterIndex !== -1) {
+      merged.splice(insertAfterIndex + 1, 0, ghost);
+    } else {
+      // No predecessor found, insert at original position or start
+      const insertIndex = Math.min(baseIndex, merged.length);
+      merged.splice(insertIndex, 0, ghost);
     }
-  }
+  });
 
-  return result;
-}
-
-/**
- * Merges rules (rows) by inserting removed items at their original positions.
- */
-function mergeRules<T extends { "@_id"?: string }>(
-  baseRules: Normalized<T>[],
-  currentRules: Normalized<T>[],
-  removedIds: string[]
-): Normalized<T>[] {
-  if (removedIds.length === 0) {
-    return currentRules;
-  }
-
-  const currentIdSet = new Set(currentRules.map((rule) => rule["@_id"]).filter((id): id is string => !!id));
-
-  const result: Normalized<T>[] = [];
-
-  for (const baseRule of baseRules) {
-    const ruleId = baseRule["@_id"];
-
-    if (removedIds.includes(ruleId ?? "")) {
-      const removedRule = structuredClone(baseRule) as Normalized<T> & RemovedItemMetadata;
-      removedRule.__isRemoved = true;
-      removedRule.__removedType = "row";
-      result.push(removedRule as Normalized<T>);
-    } else if (currentIdSet.has(ruleId ?? "")) {
-      const currentRule = currentRules.find((rule) => rule["@_id"] === ruleId);
-      if (currentRule) {
-        result.push(currentRule);
-      }
-    }
-  }
-
-  for (const currentRule of currentRules) {
-    const ruleId = currentRule["@_id"];
-    if (ruleId && !baseRules.some((rule) => rule["@_id"] === ruleId)) {
-      result.push(currentRule);
-    }
-  }
-
-  return result;
+  return merged;
 }
 
 /**
  * Type guard to check if an element is marked as removed.
- *
- * @param element - The element to check
- * @returns True if the element has the `__isRemoved` marker property
  */
 export function isRemovedElement(element: unknown): element is { __isRemoved: true } {
   return typeof element === "object" && element !== null && "__isRemoved" in element && element.__isRemoved === true;

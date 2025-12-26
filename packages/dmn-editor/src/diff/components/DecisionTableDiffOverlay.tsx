@@ -338,7 +338,7 @@ export function DecisionTableDiffOverlay({
         type: "input" | "output" | "annotation"
       ) => {
         Object.entries(entries ?? {}).forEach(([currentIndexStr, change]) => {
-          const currentIndex = parseInt(currentIndexStr, 10);
+          const currentIndexInCurrentModel = parseInt(currentIndexStr, 10);
           const list =
             type === "input"
               ? currentExpression?.input
@@ -346,22 +346,58 @@ export function DecisionTableDiffOverlay({
                 ? currentExpression?.output
                 : currentExpression?.annotation;
 
-          const columnId = resolveColumnId(list, currentIndex, type);
-          const domIndex = columnId ? getColumnDomIndex(columnId, type) : undefined;
+          const columnId = resolveColumnId(list, currentIndexInCurrentModel, type);
+          if (!columnId) return;
 
-          if (domIndex !== undefined) {
+          // Map from current model index to merged model index
+          const removedColumnIds = new Set(
+            type === "input"
+              ? decisionTableDiff.input?.removed ?? []
+              : type === "output"
+                ? decisionTableDiff.output?.removed ?? []
+                : decisionTableDiff.annotation?.removed ?? []
+          );
+
+          const baseList =
+            type === "input"
+              ? baseExpression?.input
+              : type === "output"
+                ? baseExpression?.output
+                : baseExpression?.annotation;
+
+          let removedBeforeCount = 0;
+          if (baseList) {
+            for (const baseCol of baseList) {
+              const baseColId =
+                type === "annotation"
+                  ? (baseCol as { "@_name"?: string })["@_name"]
+                  : (baseCol as { "@_id"?: string })["@_id"];
+              if (baseColId === columnId) break;
+              if (baseColId && removedColumnIds.has(baseColId)) {
+                removedBeforeCount++;
+              }
+            }
+          }
+
+          // Calculate DOM index in merged model
+          const domIndexInMergedModel = columnId ? getColumnDomIndex(columnId, type) : undefined;
+          // Adjust for removed columns
+          const adjustedDomIndex =
+            domIndexInMergedModel !== undefined ? domIndexInMergedModel + removedBeforeCount : undefined;
+
+          if (adjustedDomIndex !== undefined) {
             const changes = change as import("../types").DiffPropertyChange[];
             const textChange = changes.find((c) => c.property === "text") || changes[0];
             const oldValue = textChange?.previousValue ?? "";
             const newValue = textChange?.currentValue ?? "";
 
-            diffMapRef.current.set(`${ruleId}-${domIndex}`, {
+            diffMapRef.current.set(`${ruleId}-${adjustedDomIndex}`, {
               previous: String(oldValue),
               current: String(newValue),
             });
 
             styles.push(`
-               tr.${sanitizedRuleId} td[data-ouia-component-id="expression-column-${domIndex}"] {
+               tr.${sanitizedRuleId} td[data-ouia-component-id="expression-column-${adjustedDomIndex}"] {
                   background-color: ${OVERLAY_MODIFIED_BG} !important;
                   border: 2px solid ${OVERLAY_MODIFIED_BORDER} !important;
                   cursor: pointer !important;
