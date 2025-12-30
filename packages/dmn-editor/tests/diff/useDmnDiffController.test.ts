@@ -84,7 +84,6 @@ describe("useDmnDiffController", () => {
     expect(DmnMarshaller.getMarshaller).toHaveBeenCalledTimes(2);
     expect(storeMocks.setStateMock).toHaveBeenCalled();
 
-    // Simulate all setState calls
     const state = {
       diff: { baseModel: undefined, isDiffModeEnabled: false },
       diagram: {
@@ -128,7 +127,6 @@ describe("useDmnDiffController", () => {
       dispatch: storeMocks.dispatchMock,
     };
 
-    // Execute the last setState call which updates the diff
     applyStateUpdates(storeMocks.setStateMock, state);
 
     expect(storeMocks.dispatchResetMock).toHaveBeenCalled();
@@ -142,20 +140,18 @@ describe("useDmnDiffController", () => {
         drgElement: [
           {
             "@_id": "node1",
-            informationRequirement: [{ "@_id": "edge1" }, { "@_id": "edge2" }], // edge2 is ghost
+            informationRequirement: [{ "@_id": "edge1" }, { "@_id": "edge2" }],
           },
         ],
         artifact: [],
       },
     };
 
-    const diffsByEdgeId = new Map([
-      ["edge2", DiffChangeType.REMOVED], // edge2 is a ghost edge
-    ]);
+    const diffsByEdgeId = new Map([["edge2", DiffChangeType.REMOVED]]);
 
     storeMocks.setStateMock.mockImplementation((updater: any) => {
       const state = {
-        diff: { deletedNodeIds: new Set(["ghostNode"]) }, // ghostNode should be removed
+        diff: { deletedNodeIds: new Set(["ghostNode"]) },
         diagram: {
           diffsByEdgeId,
           overlays: { enableDiffHighlights: true },
