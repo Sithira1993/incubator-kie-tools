@@ -2,7 +2,6 @@ import * as React from "react";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { DmnLatestModel } from "@kie-tools/dmn-marshaller";
 import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
-import { computeDmnDiff } from "../algorithms/dmnDiffAlgorithm";
 import { mergeModels } from "../algorithms/mergeModels";
 import { DiffChangeType, DiffResult } from "../types";
 import { parseXmlHref, buildXmlHref } from "@kie-tools/dmn-marshaller/dist/xml";
@@ -17,7 +16,6 @@ import { Diagram, DiagramRef } from "../../diagram/Diagram";
 import { I18nDictionariesProvider } from "@kie-tools-core/i18n/dist/react-components";
 import { dmnEditorDictionaries, DmnEditorI18nContext, dmnEditorI18nDefaults } from "../../i18n";
 import { CommandsContextProvider } from "../../commands/CommandsContextProvider";
-import { Viewport } from "reactflow";
 import { DIFF_ADDED_COLOR, DIFF_MODIFIED_COLOR, DIFF_REMOVED_COLOR } from "../styles/diffHighlightStyles";
 import "./DmnDiffViewer.css";
 
@@ -26,9 +24,6 @@ export interface DmnUnifiedDiffViewerProps {
   modelB: Normalized<DmnLatestModel>;
   diffResult: DiffResult;
 }
-
-const VIEWPORT_EPSILONS = { x: 0.1, y: 0.1, zoom: 0.001 };
-/* ... helper functions ... */
 
 export const DmnUnifiedDiffViewer = ({ modelA, modelB, diffResult }: DmnUnifiedDiffViewerProps) => {
   const [mergedModel, setMergedModel] = useState<Normalized<DmnLatestModel> | undefined>();

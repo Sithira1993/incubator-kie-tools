@@ -26,7 +26,7 @@ import {
 } from "@kie-tools/dmn-marshaller";
 import { BoxedDecisionTable } from "@kie-tools/boxed-expression-component/dist/api";
 import { BoxedExpressionDiff, DiffPropertyChange } from "../types";
-import { diffArrayElements, indexElementsById } from "./diffUtils";
+import { diffArrayElements } from "./diffUtils";
 import { getDescriptionText } from "./typeGuards";
 
 /**

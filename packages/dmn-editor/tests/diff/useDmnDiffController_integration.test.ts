@@ -69,7 +69,6 @@ describe("useDmnDiffController Integration", () => {
 
   const changedModel = createEmptyModel();
   addInputData(changedModel, { id: "input1", name: "Input 1" });
-  // decision1 REMOVED
   addDecision(changedModel, {
     id: "decision2",
     name: "Decision 2",
@@ -85,12 +84,10 @@ describe("useDmnDiffController Integration", () => {
       return { parser: { parse: () => ({ definitions: {} }) } } as any;
     });
 
-    // 1. Open Diff
     await openDiff("base", "changed");
 
     expect(storeMocks.setStateMock).toHaveBeenCalled();
 
-    // Capture the state update from openDiff
     let capturedState: any = {
       diff: {},
       diagram: { overlays: {}, diffsByNodeId: new Map(), diffsByEdgeId: new Map() },
@@ -98,10 +95,9 @@ describe("useDmnDiffController Integration", () => {
       dispatch: storeMocks.dispatchMock,
     };
 
-    // Apply updates
     applyStateUpdates(storeMocks.setStateMock, capturedState);
 
-    // Verify Diff Calculation (Integration with dmnDiffAlgorithm)
+    // Verify Diff Calculation
     const diffsByNodeId = capturedState.diagram.diffsByNodeId as Map<string, DiffChangeType>;
     const diffsByEdgeId = capturedState.diagram.diffsByEdgeId as Map<string, DiffChangeType>;
 
@@ -110,24 +106,20 @@ describe("useDmnDiffController Integration", () => {
     expect(diffsByEdgeId.get(`edge1`)).toBe(DiffChangeType.REMOVED);
     expect(diffsByEdgeId.get(`edge2`)).toBe(DiffChangeType.ADDED);
 
-    // Verify Merged Model (Integration with mergeModels)
     expect(storeMocks.dispatchResetMock).toHaveBeenCalled();
     const mergedModel = storeMocks.dispatchResetMock.mock.calls[0][0];
 
-    // decision1 should be present in merged model
     const mergedDecision1 = mergedModel.definitions.drgElement.find((el: any) => el["@_id"] === "decision1");
     expect(mergedDecision1).toBeDefined();
     expect(mergedDecision1["@_name"]).toBe("Decision 1");
 
-    // edge1 to be present in decision1's requirements
     expect(mergedDecision1.informationRequirement[0]["@_id"]).toBe("edge1");
 
-    // 2. Close Diff
     storeMocks.setStateMock.mockClear();
     storeMocks.dispatchResetMock.mockClear();
 
     storeMocks.setStateMock.mockImplementation((updater: any) => {
-      updater(capturedState); // pass the full state with diffs
+      updater(capturedState);
     });
 
     capturedState.dmn.model = mergedModel;
@@ -142,7 +134,6 @@ describe("useDmnDiffController Integration", () => {
     const cleanedDecision1 = cleanedModel.definitions.drgElement.find((el: any) => el["@_id"] === "decision1");
     expect(cleanedDecision1).toBeUndefined();
 
-    // Verify decision2 exists (it was ADDED in changed model)
     const cleanedDecision2 = cleanedModel.definitions.drgElement.find((el: any) => el["@_id"] === "decision2");
     expect(cleanedDecision2).toBeDefined();
   });
@@ -151,8 +142,6 @@ describe("useDmnDiffController Integration", () => {
 
     const changedModel2 = createEmptyModel();
     addInputData(changedModel2, { id: "input1", name: "Input 1" });
-    // decision1 REMOVED
-    // decision2 NOT ADDED
     addDecision(changedModel2, {
       id: "decision3",
       name: "Decision 3",
@@ -166,11 +155,9 @@ describe("useDmnDiffController Integration", () => {
       return { parser: { parse: () => ({ definitions: {} }) } };
     });
 
-    // 1. Initial Open Diff
     await openDiff("base", "changed");
     expect(storeMocks.setStateMock).toHaveBeenCalled();
 
-    // Setup state for updateDiff
     const stateAfterOpen = {
       diff: {
         baseModel: baseModel,
@@ -195,13 +182,11 @@ describe("useDmnDiffController Integration", () => {
     storeMocks.getStateMock.mockReturnValue(stateAfterOpen);
     storeMocks.setStateMock.mockClear();
 
-    // 2. Update Diff with new model
     await updateDiff("changed2");
 
     expect(storeMocks.setStateMock).toHaveBeenCalled();
     expect(DmnMarshaller.getMarshaller).toHaveBeenCalledWith("changed2", { upgradeTo: "latest" });
 
-    // Capture state update from updateDiff
     let capturedState: any = { ...stateAfterOpen };
     capturedState.diff = { ...capturedState.diff, deletedNodeIds: new Set() };
     capturedState.diagram = { ...capturedState.diagram, diffsByNodeId: new Map(), diffsByEdgeId: new Map() };
