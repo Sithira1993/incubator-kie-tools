@@ -55,7 +55,7 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
           __$$element: "decision",
           literalExpression: DMN.literal("foo"),
         };
-        const nodeB = { ...nodeA, literalExpression: DMN.literal("bar") }; // Only text changed
+        const nodeB = { ...nodeA, literalExpression: DMN.literal("bar") };
 
         const result = computeDmnDiff(createModelWithExpression(nodeA), createModelWithExpression(nodeB));
 
@@ -80,8 +80,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
       });
 
       it("preserves deeply nested details in expression replacement", () => {
-        // Verify that expression replacement preserves full nested structure details
-
         const contextExpr = DMN.context(
           [
             DMN.contextEntry("Entry1", DMN.literal("Value1"), "entry1_id"),
@@ -95,19 +93,16 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         const diff = diffBoxedExpression(contextExpr, listExpr);
 
         expect(diff?.kind).toBe("expressionReplacement");
-        const replaceDiff = diff as any; // Cast to access specific fields if needed
+        const replaceDiff = diff as any;
 
-        // Assert preservation of original deeply nested structure
         const prev = replaceDiff.previousExpression as Normalized<BoxedContext>;
         expect(prev).toBeDefined();
         expect(prev.__$$element).toBe("context");
         expect(prev.contextEntry).toHaveLength(2);
 
-        // Check first entry
         expect(prev.contextEntry![0].variable!["@_name"]).toBe("Entry1");
         expect((prev.contextEntry![0].expression as Normalized<BoxedLiteral>)?.text?.__$$text).toBe("Value1");
 
-        // Check second entry (nested list)
         expect(prev.contextEntry![1].variable!["@_name"]).toBe("Entry2");
         const nestedList = prev.contextEntry![1].expression as Normalized<BoxedList>;
         expect(nestedList.__$$element).toBe("list");
@@ -117,14 +112,8 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
     describe("List Expression", () => {
       it("detects insertion in list without flagging all subsequent items as modified", () => {
-        // List A: [A, B]
         const itemsA = [DMN.literal("A", "id_a"), DMN.literal("B", "id_b")];
-        // List B: [C, A, B] (Inserted C at start)
-        const itemsB = [
-          DMN.literal("C", "id_c"), // New item
-          DMN.literal("A", "id_a"), // Moved index 0 -> 1
-          DMN.literal("B", "id_b"), // Moved index 1 -> 2
-        ];
+        const itemsB = [DMN.literal("C", "id_c"), DMN.literal("A", "id_a"), DMN.literal("B", "id_b")];
 
         const exprA = DMN.list(itemsA);
         const exprB = DMN.list(itemsB);
@@ -134,25 +123,24 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
         const listDiff = diff as ListDiff;
 
-        expect(listDiff.items.added).toContain(0); // Index 0 is the new item C
+        expect(listDiff.items.added).toContain(0);
         expect(listDiff.items.modified[1].index).toEqual({
           property: "index",
           previousValue: 0,
           currentValue: 1,
-        }); // A was moved
+        });
         expect(listDiff.items.modified[2].index).toEqual({
           property: "index",
           previousValue: 1,
           currentValue: 2,
-        }); // B was moved
+        });
 
-        // Ensure we don't have false positives
         expect(Object.keys(listDiff.items.modified)).toHaveLength(2);
       });
 
       it("falls back to index-based diff if IDs are missing", () => {
         const itemsA = [{ __$$element: "literalExpression", text: { __$$text: "A" } }] as Normalized<BoxedLiteral>[];
-        const itemsB = [{ __$$element: "literalExpression", text: { __$$text: "B" } }] as Normalized<BoxedLiteral>[]; // Modified at index 0
+        const itemsB = [{ __$$element: "literalExpression", text: { __$$text: "B" } }] as Normalized<BoxedLiteral>[];
 
         const diff = diffBoxedExpression(DMN.list(itemsA), DMN.list(itemsB));
         const listDiff = diff as ListDiff;
@@ -204,15 +192,14 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
       });
 
       it("fallback: matches entries by index when IDs are missing", () => {
-        const entryA = DMN.contextEntry("var1", DMN.literal("A"), ""); // Missing ID
-        const entryB = DMN.contextEntry("var1", DMN.literal("B"), ""); // Missing ID, modified expression
+        const entryA = DMN.contextEntry("var1", DMN.literal("A"), "");
+        const entryB = DMN.contextEntry("var1", DMN.literal("B"), "");
 
         const ctxA = DMN.context([entryA]);
         const ctxB = DMN.context([entryB]);
 
         const diff = diffBoxedExpression(ctxA, ctxB) as ContextDiff;
         expect(diff).toBeDefined();
-        // Should treat index 0 as modified, using "0" as key
         expect(diff.entries.modified["0"].expression).toBeDefined();
         expect(diff.entries.added).toHaveLength(0);
         expect(diff.entries.removed).toHaveLength(0);
@@ -239,7 +226,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff).toBeDefined();
         expect(diff.annotation?.modified).toBeDefined();
-        // Annotation columns fall back to index if no ID.
         const changes = diff.annotation?.modified["0"];
         expect(changes).toBeDefined();
         expect(changes?.name).toBeDefined();
@@ -256,12 +242,11 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
       });
 
       it("fallback: matches rules by index when IDs are missing", () => {
-        const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], [DMN.rule(["A"], "")]); // No ID (empty string)
-        const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], [DMN.rule(["B"], "")]); // No ID, modified value
+        const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], [DMN.rule(["A"], "")]);
+        const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], [DMN.rule(["B"], "")]);
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff).toBeDefined();
-        // Should treat index 0 as modified, using "0" as key
         expect(diff.rules.modified["0"].inputEntries[0].currentValue).toBe("B");
       });
 
@@ -289,7 +274,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
     describe("Decision Table - Property Checks", () => {
       it("detects changes in Input Constraints (inputValues)", () => {
         const inputA = DMN.inputClause("Input 1", "in1");
-        // TypeScript types don't include inputValues property
         (inputA as any).inputValues = { text: { __$$text: "foo, bar" } };
 
         const inputB = DMN.inputClause("Input 1", "in1");
@@ -310,7 +294,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
       it("detects changes in Output Constraints (outputValues)", () => {
         const dtA = DMN.decisionTable([], []);
-        // TypeScript types don't include outputValues property
         const outA = dtA.output?.[0] as any;
         outA.outputValues = { text: { __$$text: "1..10" } };
 
@@ -330,7 +313,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
       it("detects changes in Default Output Value (defaultOutputEntry)", () => {
         const dtA = DMN.decisionTable([], []);
-        // TypeScript types don't include defaultOutputEntry property
         const outA = dtA.output?.[0] as any;
         outA.defaultOutputEntry = { text: { __$$text: "5" } };
 
@@ -358,7 +340,9 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         ruleB.annotationEntry = [{ text: { __$$text: "Modified annotation" } }];
 
         const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleA]);
+        dtA.annotation = [{ "@_name": "annotation-1" }];
         const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleB]);
+        dtB.annotation = [{ "@_name": "annotation-1" }];
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff).toBeDefined();
@@ -379,20 +363,23 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
         const ruleB = DMN.rule(["input1"], "r1");
         ruleB.annotationEntry = [
-          { text: { __$$text: "Annotation 1" } }, // Unchanged
-          { text: { __$$text: "Modified Annotation 2" } }, // Changed
-          { text: { __$$text: "Annotation 3" } }, // Unchanged
+          { text: { __$$text: "Annotation 1" } },
+          { text: { __$$text: "Modified Annotation 2" } },
+          { text: { __$$text: "Annotation 3" } },
         ];
 
+        const annotations = [{ "@_name": "1" }, { "@_name": "2" }, { "@_name": "3" }];
         const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleA]);
+        dtA.annotation = annotations;
         const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleB]);
+        dtB.annotation = annotations;
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff).toBeDefined();
-        expect(diff.rules.modified["r1"].annotationEntries[0]).toBeUndefined(); // Index 0 unchanged
-        expect(diff.rules.modified["r1"].annotationEntries[1]).toBeDefined(); // Index 1 changed
+        expect(diff.rules.modified["r1"].annotationEntries[0]).toBeUndefined();
+        expect(diff.rules.modified["r1"].annotationEntries[1]).toBeDefined();
         expect(diff.rules.modified["r1"].annotationEntries[1].currentValue).toBe("Modified Annotation 2");
-        expect(diff.rules.modified["r1"].annotationEntries[2]).toBeUndefined(); // Index 2 unchanged
+        expect(diff.rules.modified["r1"].annotationEntries[2]).toBeUndefined();
       });
 
       it("handles empty annotation entries", () => {
@@ -406,7 +393,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleB]);
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
-        // Should not detect any changes since both are empty
         expect(diff).toBeUndefined();
       });
 
@@ -418,7 +404,9 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         ruleB.annotationEntry = [{ text: { __$$text: "New annotation" } }];
 
         const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleA]);
+        dtA.annotation = [{ "@_name": "annotation-1" }];
         const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleB]);
+        dtB.annotation = [{ "@_name": "annotation-1" }];
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff).toBeDefined();
@@ -435,7 +423,9 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         ruleB.annotationEntry = [];
 
         const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleA]);
+        dtA.annotation = [{ "@_name": "annotation-1" }];
         const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleB]);
+        dtB.annotation = [{ "@_name": "annotation-1" }];
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff).toBeDefined();
@@ -452,10 +442,11 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         delete ruleB.annotationEntry;
 
         const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleA]);
+        dtA.annotation = [{ "@_name": "annotation-1" }];
         const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleB]);
+        dtB.annotation = [{ "@_name": "annotation-1" }];
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
-        // Should not detect any changes since both are undefined
         expect(diff).toBeUndefined();
       });
 
@@ -464,13 +455,14 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         ruleA.annotationEntry = [{ text: { __$$text: "" } }];
 
         const ruleB = DMN.rule(["input1"], "r1");
-        ruleB.annotationEntry = [{}]; // No text property
+        ruleB.annotationEntry = [{}];
 
         const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleA]);
+        dtA.annotation = [{ "@_name": "annotation-1" }];
         const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], [ruleB]);
+        dtB.annotation = [{ "@_name": "annotation-1" }];
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
-        // Both should be treated as empty strings, so no change
         expect(diff).toBeUndefined();
       });
     });
@@ -551,7 +543,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         const relB = DMN.relation([DMN.relCol("Col1", "c1")], [DMN.relRow([DMN.literal("ValB")], "r1")]);
 
         const diff = diffBoxedExpression(relA, relB) as RelationDiff;
-        // modified rows -> rowId -> cell -> diff
         expect(diff.rows.modified["r1"].cells[0].kind).toBe("literalExpression");
         const litDiff = diff.rows.modified["r1"].cells[0] as LiteralExpressionDiff;
         expect(litDiff.text?.currentValue).toBe("ValB");
@@ -676,10 +667,9 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
         const diff = diffBoxedExpression(condA, condB);
         expect(diff).toBeDefined();
-        // When one branch is undefined and the other is defined, it's still a conditional diff
         expect(diff?.kind).toBe("conditional");
         const condDiff = diff as ConditionalDiff;
-        expect(condDiff.then).toBeDefined(); // Then branch changed from undefined to defined
+        expect(condDiff.then).toBeDefined();
       });
     });
 
@@ -987,22 +977,19 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
       });
 
       it("matches List items by index when IDs are missing (Addition/Removal)", () => {
-        // Case: A has 1 item, B has 0 (Removal)
-        const listA = DMN.list([DMN.literal("A")]); // No ID
+        const listA = DMN.list([DMN.literal("A")]);
         const listB = DMN.list([]);
 
         const diff1 = diffBoxedExpression(listA, listB) as ListDiff;
         expect(diff1).toBeDefined();
         expect(diff1.items.removed).toContain(0);
 
-        // Case: A has 0 items, B has 1 (Addition)
         const diff2 = diffBoxedExpression(listB, listA) as ListDiff;
         expect(diff2).toBeDefined();
         expect(diff2.items.added).toContain(0);
       });
 
       it("matches Context entries by index when IDs are missing (Addition/Removal)", () => {
-        // Case: A has 1 var, B has 0
         const entry = DMN.contextEntry("v", DMN.literal("val"), "");
         const ctxA = DMN.context([entry]);
         const ctxB = DMN.context([]);
@@ -1011,7 +998,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         expect(diff1).toBeDefined();
         expect(diff1.entries.removed).toContain("0");
 
-        // Case: A has 0 var, B has 1
         const diff2 = diffBoxedExpression(ctxB, ctxA) as ContextDiff;
         expect(diff2).toBeDefined();
         expect(diff2.entries.added).toContain("0");
@@ -1182,7 +1168,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
         const diff = diffBoxedExpression(deep5A, deep5B);
         expect(diff).toBeDefined();
-        // Verify we can traverse all the way down
         expect(diff?.kind).toBe("context");
       });
     });
@@ -1191,7 +1176,7 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
       it("handles Decision Table rules where some have IDs and others don't", () => {
         const dtA = DMN.decisionTable(
           [DMN.inputClause("I", "i1")],
-          [DMN.rule(["A"], "r1"), DMN.rule(["B"], ""), DMN.rule(["C"], "r3")] // Middle rule has no ID
+          [DMN.rule(["A"], "r1"), DMN.rule(["B"], ""), DMN.rule(["C"], "r3")]
         );
 
         const dtB = DMN.decisionTable(
@@ -1201,32 +1186,28 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff).toBeDefined();
-        // Rule with ID should be matched by ID
         expect(diff.rules.modified["r1"]).toBeUndefined();
         expect(diff.rules.modified["r3"]).toBeUndefined();
-        // Rule without ID should be matched by index
         expect(diff.rules.modified["1"]).toBeDefined();
       });
 
       it("handles Context entries with partial ID coverage", () => {
         const ctxA = DMN.context([
           DMN.contextEntry("var1", DMN.literal("A"), "id1"),
-          DMN.contextEntry("var2", DMN.literal("B"), ""), // No ID
+          DMN.contextEntry("var2", DMN.literal("B"), ""),
           DMN.contextEntry("var3", DMN.literal("C"), "id3"),
         ]);
 
         const ctxB = DMN.context([
           DMN.contextEntry("var1", DMN.literal("A"), "id1"),
-          DMN.contextEntry("var2", DMN.literal("B_modified"), ""), // No ID, modified
+          DMN.contextEntry("var2", DMN.literal("B_modified"), ""),
           DMN.contextEntry("var3", DMN.literal("C"), "id3"),
         ]);
 
         const diff = diffBoxedExpression(ctxA, ctxB) as ContextDiff;
         expect(diff).toBeDefined();
-        // Entries with IDs should not be flagged as modified
         expect(diff.entries.modified["id1"]).toBeUndefined();
         expect(diff.entries.modified["id3"]).toBeUndefined();
-        // Entry without ID should be matched by index
         expect(diff.entries.modified["1"]).toBeDefined();
       });
 
@@ -1237,10 +1218,8 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
         const diff = diffBoxedExpression(listA, listB) as ListDiff;
         expect(diff).toBeDefined();
-        // Items with IDs should not be flagged
         expect(diff.items.modified[0]).toBeUndefined();
         expect(diff.items.modified[2]).toBeUndefined();
-        // Item without ID should be matched by index
         expect(diff.items.modified[1]).toBeDefined();
       });
     });
@@ -1248,7 +1227,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
     describe("Hit Policy and Aggregation", () => {
       it("detects Hit Policy changes", () => {
         const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], []);
-        // TypeScript types don't include @_hitPolicy property
         (dtA as any)["@_hitPolicy"] = "UNIQUE";
 
         const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], []);
@@ -1263,7 +1241,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
       it("detects Aggregation changes", () => {
         const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], []);
-        // TypeScript types don't include @_aggregation property
         (dtA as any)["@_aggregation"] = "SUM";
 
         const dtB = DMN.decisionTable([DMN.inputClause("I", "i1")], []);
@@ -1278,7 +1255,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
       it("detects both Hit Policy and Aggregation changes simultaneously", () => {
         const dtA = DMN.decisionTable([DMN.inputClause("I", "i1")], []);
-        // TypeScript types don't include @_hitPolicy and @_aggregation properties
         (dtA as any)["@_hitPolicy"] = "COLLECT";
         (dtA as any)["@_aggregation"] = "MIN";
 
@@ -1288,7 +1264,7 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff).toBeDefined();
-        expect(diff.hitPolicy).toBeUndefined(); // Same value
+        expect(diff.hitPolicy).toBeUndefined();
         expect(diff.aggregation).toBeDefined();
         expect(diff.aggregation?.currentValue).toBe("MAX");
       });
@@ -1297,7 +1273,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
     describe("Decision Table Column Type Changes", () => {
       it("detects input column type reference changes", () => {
         const inputA = DMN.inputClause("Input", "in1");
-        // TypeScript types don't include @_typeRef property
         (inputA.inputExpression as any)["@_typeRef"] = "string";
 
         const inputB = DMN.inputClause("Input", "in1");
@@ -1309,14 +1284,12 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         const diff = diffBoxedExpression(dtA, dtB) as DecisionTableDiff;
         expect(diff).toBeDefined();
         expect(diff.input.modified["in1"]).toBeDefined();
-        // The property is tracked as "inputExpression" with nested typeRef change
         const changes = diff.input.modified["in1"];
         expect(changes.typeRef).toBeDefined();
       });
 
       it("detects output column type reference changes", () => {
         const dtA = DMN.decisionTable([], []);
-        // TypeScript types don't include @_typeRef property
         (dtA.output?.[0] as any)["@_typeRef"] = "string";
 
         const dtB = DMN.decisionTable([], []);
@@ -1334,7 +1307,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
 
     describe("Depth Limit", () => {
       it("stops recursing when depth limit is exceeded", () => {
-        // Helper to create a nested list structure
         const createNestedMock = (depth: number, value: string): Normalized<BoxedExpression> => {
           if (depth === 0) {
             return DMN.literal(value);
@@ -1342,18 +1314,15 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
           return DMN.list([createNestedMock(depth - 1, value)]);
         };
 
-        // Create deeply nested expressions (depth 55 > 50)
         const deepA = createNestedMock(55, "initial");
         const deepB = createNestedMock(55, "modified");
 
         const diff = diffBoxedExpression(deepA, deepB);
 
-        // Should return undefined because it stops recursing before finding the difference at the bottom
         expect(diff).toBeUndefined();
       });
 
       it("detects changes within depth limit", () => {
-        // Helper to create a nested list structure
         const createNestedMock = (depth: number, value: string): Normalized<BoxedExpression> => {
           if (depth === 0) {
             return DMN.literal(value);
@@ -1361,13 +1330,11 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
           return DMN.list([createNestedMock(depth - 1, value)]);
         };
 
-        // Create nested expressions within limit (depth 45 < 50)
         const deepA = createNestedMock(45, "initial");
         const deepB = createNestedMock(45, "modified");
 
         const diff = diffBoxedExpression(deepA, deepB);
 
-        // Should find the diff since it's within the limit
         expect(diff).toBeDefined();
       });
     });
@@ -1631,7 +1598,6 @@ describe("DMN Diff Algorithm - Boxed Expressions", () => {
         const b2 = DMN.binding("p2", DMN.literal("val2"));
 
         const invA = DMN.invocation([b1, b2]);
-        // Create a new object with same content to ensure deep equality check works
         const invB = DMN.invocation([structuredClone(b1), structuredClone(b2)]);
 
         const diff = diffBoxedExpression(invA, invB);
@@ -2041,7 +2007,6 @@ describe("BKM Integration Tests", () => {
 
   describe("Performance Benchmarks", () => {
     it("should diff large decision table (100 rules, 20 columns) within 3 seconds", () => {
-      // Create a large decision table with 100 rules and 20 columns (10 inputs + 10 outputs)
       const inputs = Array.from({ length: 10 }, (_, i) => DMN.inputClause(`Input ${i + 1}`, `in_${i}`));
 
       const outputs = Array.from({ length: 10 }, (_, i) => ({
@@ -2054,10 +2019,8 @@ describe("BKM Integration Tests", () => {
         return DMN.rule(inputEntries, `rule_${ruleIdx}`, `result_${ruleIdx}`);
       });
 
-      // Create modified version with changes to 20% of rules
       const rulesB = rulesA.map((rule, idx) => {
         if (idx % 5 === 0) {
-          // Modify every 5th rule (20% of rules)
           const inputEntries = Array.from({ length: 10 }, (_, i) => `modified_${idx}_${i}`);
           return DMN.rule(inputEntries, rule["@_id"], `modified_result_${idx}`);
         }
@@ -2073,16 +2036,14 @@ describe("BKM Integration Tests", () => {
 
       expect(diff).toBeDefined();
       expect(diff?.kind).toBe("decisionTable");
-      expect(duration).toBeLessThan(3000); // Must complete within 3 seconds
+      expect(duration).toBeLessThan(3000);
     });
 
     it("should diff large decision table with column changes within 3 seconds", () => {
-      // Test performance when columns are modified (not just rules)
       const inputsA = Array.from({ length: 15 }, (_, i) => DMN.inputClause(`Input ${i + 1}`, `in_${i}`));
 
       const inputsB = inputsA.map((input, idx) => {
         if (idx % 3 === 0) {
-          // Modify every 3rd input column
           const modified = structuredClone(input);
           modified.inputExpression!["@_typeRef"] = "number";
           return modified;
@@ -2107,7 +2068,6 @@ describe("BKM Integration Tests", () => {
     });
 
     it("should diff deeply nested expressions within 3 seconds", () => {
-      // Create a complex nested structure: Context with 50 entries, each containing a List with 5 items
       const createComplexContext = (suffix: string) => {
         const entries = Array.from({ length: 50 }, (_, i) =>
           DMN.contextEntry(
@@ -2144,7 +2104,6 @@ describe("BKM Integration Tests", () => {
         return DMN.relRow(cells, `row_${rowIdx}`);
       });
 
-      // Modify 25% of rows
       const rowsB = rowsA.map((row, idx) => {
         if (idx % 4 === 0) {
           const cells = Array.from({ length: 10 }, (_, colIdx) =>
@@ -2170,7 +2129,6 @@ describe("BKM Integration Tests", () => {
     it("should diff function with many parameters (50 params) within 3 seconds", () => {
       const paramsA = Array.from({ length: 50 }, (_, i) => DMN.param(`param_${i}`, "string", `p_${i}`));
 
-      // Modify 20% of parameters
       const paramsB = paramsA.map((param, idx) => {
         if (idx % 5 === 0) {
           return DMN.param(param["@_name"]!, "number", param["@_id"]!);
@@ -2192,7 +2150,6 @@ describe("BKM Integration Tests", () => {
     });
 
     it("should handle worst-case scenario: all rules modified in large table", () => {
-      // Worst case: Every single rule is modified
       const inputs = Array.from({ length: 8 }, (_, i) => DMN.inputClause(`In ${i}`, `in_${i}`));
 
       const rulesA = Array.from({ length: 100 }, (_, ruleIdx) => {
