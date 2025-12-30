@@ -84,7 +84,6 @@ describe("useDmnDiffController", () => {
     expect(DmnMarshaller.getMarshaller).toHaveBeenCalledTimes(2);
     expect(storeMocks.setStateMock).toHaveBeenCalled();
 
-    // Simulate all setState calls
     const state = {
       diff: { baseModel: undefined, isDiffModeEnabled: false },
       diagram: {
@@ -128,7 +127,6 @@ describe("useDmnDiffController", () => {
       dispatch: storeMocks.dispatchMock,
     };
 
-    // Execute the last setState call which updates the diff
     applyStateUpdates(storeMocks.setStateMock, state);
 
     expect(storeMocks.dispatchResetMock).toHaveBeenCalled();
