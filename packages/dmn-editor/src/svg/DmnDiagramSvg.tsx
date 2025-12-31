@@ -95,7 +95,8 @@ export function DmnDiagramSvg({
 
       nodesById.set(node.id, node);
 
-      const { height, width, ...style } = node.style!;
+      const { height, width, strokeDasharray, ...restStyle } = node.style!;
+      const style = { ...restStyle, strokeDasharray: strokeDasharray?.toString() };
 
       const isCollection =
         node.data?.dmnObject?.__$$element === "inputData"

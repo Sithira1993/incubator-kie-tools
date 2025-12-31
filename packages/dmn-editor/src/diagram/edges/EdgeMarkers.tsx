@@ -35,6 +35,43 @@ export function EdgeMarkers() {
         <circle cx="5" cy="5" r="5" fill="context-fill" stroke="context-stroke" />
       </marker>
       <marker
+        id="closed-circle-at-center-removed"
+        viewBox="0 0 10 10"
+        refX={5}
+        refY={5}
+        markerUnits="userSpaceOnUse"
+        markerWidth="8"
+        markerHeight="8"
+        orient="auto-start-reverse"
+      >
+        <circle cx="5" cy="5" r="5" fill="rgba(201, 25, 11, 1)" stroke="rgba(201, 25, 11, 1)" />
+      </marker>
+      <marker
+        id="closed-circle-at-center-added"
+        viewBox="0 0 10 10"
+        refX={5}
+        refY={5}
+        markerUnits="userSpaceOnUse"
+        markerWidth="8"
+        markerHeight="8"
+        orient="auto-start-reverse"
+      >
+        <circle cx="5" cy="5" r="5" fill="rgba(79, 150, 110, 1)" stroke="rgba(79, 150, 110, 1)" />
+      </marker>
+      <marker
+        id="closed-circle-at-center-modified"
+        viewBox="0 0 10 10"
+        refX={5}
+        refY={5}
+        markerUnits="userSpaceOnUse"
+        markerWidth="8"
+        markerHeight="8"
+        orient="auto-start-reverse"
+      >
+        <circle cx="5" cy="5" r="5" fill="rgba(240, 171, 0, 1)" stroke="rgba(240, 171, 0, 1)" />
+      </marker>
+
+      <marker
         id="closed-circle-at-border"
         viewBox="0 0 10 10"
         refX={10}
@@ -46,6 +83,43 @@ export function EdgeMarkers() {
       >
         <circle cx="5" cy="5" r="5" fill="context-fill" stroke="context-stroke" />
       </marker>
+      <marker
+        id="closed-circle-at-border-removed"
+        viewBox="0 0 10 10"
+        refX={10}
+        refY={5}
+        markerUnits="userSpaceOnUse"
+        markerWidth="8"
+        markerHeight="8"
+        orient="auto-start-reverse"
+      >
+        <circle cx="5" cy="5" r="5" fill="rgba(201, 25, 11, 1)" stroke="rgba(201, 25, 11, 1)" />
+      </marker>
+      <marker
+        id="closed-circle-at-border-added"
+        viewBox="0 0 10 10"
+        refX={10}
+        refY={5}
+        markerUnits="userSpaceOnUse"
+        markerWidth="8"
+        markerHeight="8"
+        orient="auto-start-reverse"
+      >
+        <circle cx="5" cy="5" r="5" fill="rgba(79, 150, 110, 1)" stroke="rgba(79, 150, 110, 1)" />
+      </marker>
+      <marker
+        id="closed-circle-at-border-modified"
+        viewBox="0 0 10 10"
+        refX={10}
+        refY={5}
+        markerUnits="userSpaceOnUse"
+        markerWidth="8"
+        markerHeight="8"
+        orient="auto-start-reverse"
+      >
+        <circle cx="5" cy="5" r="5" fill="rgba(240, 171, 0, 1)" stroke="rgba(240, 171, 0, 1)" />
+      </marker>
+
       <marker
         id="closed-arrow"
         viewBox="0 0 10 10"
@@ -59,6 +133,43 @@ export function EdgeMarkers() {
         <path d="M 0 0 L 10 5 L 0 10 z" fill="context-fill" stroke="context-stroke" />
       </marker>
       <marker
+        id="closed-arrow-removed"
+        viewBox="0 0 10 10"
+        refX={10}
+        refY={5}
+        markerUnits="userSpaceOnUse"
+        markerWidth="8"
+        markerHeight="8"
+        orient="auto-start-reverse"
+      >
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(201, 25, 11, 1)" stroke="rgba(201, 25, 11, 1)" />
+      </marker>
+      <marker
+        id="closed-arrow-added"
+        viewBox="0 0 10 10"
+        refX={10}
+        refY={5}
+        markerUnits="userSpaceOnUse"
+        markerWidth="8"
+        markerHeight="8"
+        orient="auto-start-reverse"
+      >
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(79, 150, 110, 1)" stroke="rgba(79, 150, 110, 1)" />
+      </marker>
+      <marker
+        id="closed-arrow-modified"
+        viewBox="0 0 10 10"
+        refX={10}
+        refY={5}
+        markerUnits="userSpaceOnUse"
+        markerWidth="8"
+        markerHeight="8"
+        orient="auto-start-reverse"
+      >
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(240, 171, 0, 1)" stroke="rgba(240, 171, 0, 1)" />
+      </marker>
+
+      <marker
         id="open-arrow"
         viewBox="0 0 10 10"
         refX={10}
@@ -69,6 +180,42 @@ export function EdgeMarkers() {
         orient="auto-start-reverse"
       >
         <path d="M 0,0 L 10,5 M 10,5 L 0,10" stroke="black" />
+      </marker>
+      <marker
+        id="open-arrow-removed"
+        viewBox="0 0 10 10"
+        refX={10}
+        refY={5}
+        markerUnits="userSpaceOnUse"
+        markerWidth="8"
+        markerHeight="8"
+        orient="auto-start-reverse"
+      >
+        <path d="M 0,0 L 10,5 M 10,5 L 0,10" stroke="rgba(201, 25, 11, 1)" fill="none" />
+      </marker>
+      <marker
+        id="open-arrow-added"
+        viewBox="0 0 10 10"
+        refX={10}
+        refY={5}
+        markerUnits="userSpaceOnUse"
+        markerWidth="8"
+        markerHeight="8"
+        orient="auto-start-reverse"
+      >
+        <path d="M 0,0 L 10,5 M 10,5 L 0,10" stroke="rgba(79, 150, 110, 1)" fill="none" />
+      </marker>
+      <marker
+        id="open-arrow-modified"
+        viewBox="0 0 10 10"
+        refX={10}
+        refY={5}
+        markerUnits="userSpaceOnUse"
+        markerWidth="8"
+        markerHeight="8"
+        orient="auto-start-reverse"
+      >
+        <path d="M 0,0 L 10,5 M 10,5 L 0,10" stroke="rgba(240, 171, 0, 1)" fill="none" />
       </marker>
     </defs>
   );

@@ -41,22 +41,37 @@ export type DmnDiagramEdgeData = {
   dmnShapeTarget: Normalized<DMN_LATEST__DMNShape> | undefined;
 };
 
+export type DiffChangeType = "ADDED" | "REMOVED" | "MODIFIED";
+
 export const InformationRequirementPath = React.memo(
   (
     _props: React.SVGProps<SVGPathElement> & {
       svgRef?: React.RefObject<SVGPathElement>;
       diffStrokeColor?: string;
       diffStrokeWidth?: number;
+      diffStrokeDasharray?: string;
+      diffChangeType?: DiffChangeType;
     }
   ) => {
-    const { svgRef, diffStrokeColor, diffStrokeWidth, style, ...props } = _props;
+    const { svgRef, diffStrokeColor, diffStrokeWidth, diffStrokeDasharray, diffChangeType, style, ...props } = _props;
     const strokeColor = diffStrokeColor ?? "black";
     const strokeWidth = diffStrokeWidth ?? 1;
+    const strokeDasharray = diffStrokeDasharray ?? style?.strokeDasharray;
+
+    let markerEndId = "closed-arrow";
+    if (diffChangeType === "REMOVED") {
+      markerEndId = "closed-arrow-removed";
+    } else if (diffChangeType === "ADDED") {
+      markerEndId = "closed-arrow-added";
+    } else if (diffChangeType === "MODIFIED") {
+      markerEndId = "closed-arrow-modified";
+    }
+
     return (
       <path
         ref={svgRef}
-        style={{ strokeWidth, stroke: strokeColor, ...style }}
-        markerEnd={"url(#closed-arrow)"}
+        style={{ strokeWidth, stroke: strokeColor, strokeDasharray, ...style }}
+        markerEnd={`url(#${markerEndId})`}
         {...props}
       />
     );
@@ -69,16 +84,29 @@ export const KnowledgeRequirementPath = React.memo(
       svgRef?: React.RefObject<SVGPathElement>;
       diffStrokeColor?: string;
       diffStrokeWidth?: number;
+      diffStrokeDasharray?: string;
+      diffChangeType?: DiffChangeType;
     }
   ) => {
-    const { svgRef, diffStrokeColor, diffStrokeWidth, style, ...props } = __props;
+    const { svgRef, diffStrokeColor, diffStrokeWidth, diffStrokeDasharray, diffChangeType, style, ...props } = __props;
     const strokeColor = diffStrokeColor ?? "black";
     const strokeWidth = diffStrokeWidth ?? 1;
+    const strokeDasharray = diffStrokeDasharray ?? "5,5";
+
+    let markerEndId = "open-arrow";
+    if (diffChangeType === "REMOVED") {
+      markerEndId = "open-arrow-removed";
+    } else if (diffChangeType === "ADDED") {
+      markerEndId = "open-arrow-added";
+    } else if (diffChangeType === "MODIFIED") {
+      markerEndId = "open-arrow-modified";
+    }
+
     return (
       <path
         ref={svgRef}
-        style={{ strokeWidth, stroke: strokeColor, strokeDasharray: "5,5", ...style }}
-        markerEnd={"url(#open-arrow)"}
+        style={{ strokeWidth, stroke: strokeColor, strokeDasharray, ...style }}
+        markerEnd={`url(#${markerEndId})`}
         {...props}
       />
     );
@@ -92,16 +120,38 @@ export const AuthorityRequirementPath = React.memo(
       svgRef?: React.RefObject<SVGPathElement>;
       diffStrokeColor?: string;
       diffStrokeWidth?: number;
+      diffStrokeDasharray?: string;
+      diffChangeType?: DiffChangeType;
     }
   ) => {
-    const { centerToConnectionPoint: center, svgRef, diffStrokeColor, diffStrokeWidth, style, ...props } = __props;
+    const {
+      centerToConnectionPoint: center,
+      svgRef,
+      diffStrokeColor,
+      diffStrokeWidth,
+      diffStrokeDasharray,
+      diffChangeType,
+      style,
+      ...props
+    } = __props;
     const strokeColor = diffStrokeColor ?? "black";
     const strokeWidth = diffStrokeWidth ?? 1;
+    const strokeDasharray = diffStrokeDasharray ?? "5,5";
+
+    let markerEndId = center ? "closed-circle-at-center" : "closed-circle-at-border";
+    if (diffChangeType === "REMOVED") {
+      markerEndId = center ? "closed-circle-at-center-removed" : "closed-circle-at-border-removed";
+    } else if (diffChangeType === "ADDED") {
+      markerEndId = center ? "closed-circle-at-center-added" : "closed-circle-at-border-added";
+    } else if (diffChangeType === "MODIFIED") {
+      markerEndId = center ? "closed-circle-at-center-modified" : "closed-circle-at-border-modified";
+    }
+
     return (
       <path
         ref={svgRef}
-        style={{ strokeWidth, stroke: strokeColor, strokeDasharray: "5,5", ...style }}
-        markerEnd={center ? `url(#closed-circle-at-center)` : `url(#closed-circle-at-border)`}
+        style={{ strokeWidth, stroke: strokeColor, strokeDasharray, ...style }}
+        markerEnd={`url(#${markerEndId})`}
         {...props}
       />
     );
@@ -114,19 +164,21 @@ export const AssociationPath = React.memo(
       svgRef?: React.RefObject<SVGPathElement>;
       diffStrokeColor?: string;
       diffStrokeWidth?: number;
+      diffStrokeDasharray?: string;
     }
   ) => {
     const baseStrokeWidth = __props.strokeWidth ?? 1.5;
     const strokeWidth = __props.diffStrokeWidth ?? baseStrokeWidth;
     const strokeColor = __props.diffStrokeColor ?? "black";
-    const { svgRef, diffStrokeColor, diffStrokeWidth, style, ...props } = __props;
+    const strokeDasharray = __props.diffStrokeDasharray ?? `${strokeWidth},10`;
+    const { svgRef, diffStrokeColor, diffStrokeWidth, diffStrokeDasharray, style, ...props } = __props;
     return (
       <path
         ref={svgRef}
         strokeWidth={strokeWidth}
         strokeLinecap="butt"
         strokeLinejoin="round"
-        style={{ stroke: strokeColor, strokeDasharray: `${strokeWidth},10`, ...style }}
+        style={{ stroke: strokeColor, strokeDasharray, ...style }}
         {...props}
       />
     );
@@ -156,6 +208,12 @@ const interactionStrokeProps: Partial<React.SVGAttributes<SVGPathElement>> = {
   strokeLinecap: "round",
 };
 
+function useEdgeDiffStyle(edgeId: string) {
+  const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByEdgeId?.get(edgeId));
+  const diffStyle = React.useMemo(() => getDiffStyle(diffChangeType), [diffChangeType]);
+  return { diffChangeType, diffStyle };
+}
+
 export const InformationRequirementEdge = React.memo((props: RF.EdgeProps<DmnDiagramEdgeData>) => {
   const renderCount = useRef<number>(0);
   renderCount.current++;
@@ -177,8 +235,7 @@ export const InformationRequirementEdge = React.memo((props: RF.EdgeProps<DmnDia
   const isConnecting = !!RF.useStore((s) => s.connectionNodeId);
   const className = useEdgeClassName(isConnecting, isDraggingWaypoint);
 
-  const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByEdgeId?.get(props.id));
-  const diffStyle = React.useMemo(() => getDiffStyle(diffChangeType), [diffChangeType]);
+  const { diffChangeType, diffStyle } = useEdgeDiffStyle(props.id);
 
   useAlwaysVisibleEdgeUpdatersAtNodeBorders(interactionPathRef, props.source, props.target, waypoints);
 
@@ -200,6 +257,8 @@ export const InformationRequirementEdge = React.memo((props: RF.EdgeProps<DmnDia
         className={`kie-dmn-editor--edge ${className}`}
         diffStrokeColor={diffStyle.strokeColor}
         diffStrokeWidth={diffStyle.strokeWidth}
+        diffStrokeDasharray={diffStyle.strokeDasharray}
+        diffChangeType={diffChangeType}
       />
 
       {!settings.isReadOnly && props.selected && !isConnecting && props.data?.dmnEdge && (
@@ -236,8 +295,7 @@ export const KnowledgeRequirementEdge = React.memo((props: RF.EdgeProps<DmnDiagr
   const isConnecting = !!RF.useStore((s) => s.connectionNodeId);
   const className = useEdgeClassName(isConnecting, isDraggingWaypoint);
 
-  const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByEdgeId?.get(props.id));
-  const diffStyle = React.useMemo(() => getDiffStyle(diffChangeType), [diffChangeType]);
+  const { diffChangeType, diffStyle } = useEdgeDiffStyle(props.id);
 
   useAlwaysVisibleEdgeUpdatersAtNodeBorders(interactionPathRef, props.source, props.target, waypoints);
 
@@ -259,6 +317,8 @@ export const KnowledgeRequirementEdge = React.memo((props: RF.EdgeProps<DmnDiagr
         className={`kie-dmn-editor--edge ${className}`}
         diffStrokeColor={diffStyle.strokeColor}
         diffStrokeWidth={diffStyle.strokeWidth}
+        diffStrokeDasharray={diffStyle.strokeDasharray}
+        diffChangeType={diffChangeType}
       />
 
       {!settings.isReadOnly && props.selected && !isConnecting && props.data?.dmnEdge && (
@@ -295,8 +355,7 @@ export const AuthorityRequirementEdge = React.memo((props: RF.EdgeProps<DmnDiagr
   const isConnecting = !!RF.useStore((s) => s.connectionNodeId);
   const className = useEdgeClassName(isConnecting, isDraggingWaypoint);
 
-  const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByEdgeId?.get(props.id));
-  const diffStyle = React.useMemo(() => getDiffStyle(diffChangeType), [diffChangeType]);
+  const { diffChangeType, diffStyle } = useEdgeDiffStyle(props.id);
 
   useAlwaysVisibleEdgeUpdatersAtNodeBorders(interactionPathRef, props.source, props.target, waypoints);
 
@@ -320,6 +379,8 @@ export const AuthorityRequirementEdge = React.memo((props: RF.EdgeProps<DmnDiagr
         centerToConnectionPoint={false}
         diffStrokeColor={diffStyle.strokeColor}
         diffStrokeWidth={diffStyle.strokeWidth}
+        diffStrokeDasharray={diffStyle.strokeDasharray}
+        diffChangeType={diffChangeType}
       />
 
       {!settings.isReadOnly && props.selected && !isConnecting && props.data?.dmnEdge && (
@@ -356,8 +417,7 @@ export const AssociationEdge = React.memo((props: RF.EdgeProps<DmnDiagramEdgeDat
   const isConnecting = !!RF.useStore((s) => s.connectionNodeId);
   const className = useEdgeClassName(isConnecting, isDraggingWaypoint);
 
-  const diffChangeType = useDmnEditorStore((s) => s.diagram.diffsByEdgeId?.get(props.id));
-  const diffStyle = React.useMemo(() => getDiffStyle(diffChangeType), [diffChangeType]);
+  const { diffChangeType, diffStyle } = useEdgeDiffStyle(props.id);
 
   useAlwaysVisibleEdgeUpdatersAtNodeBorders(interactionPathRef, props.source, props.target, waypoints);
 
@@ -379,6 +439,7 @@ export const AssociationEdge = React.memo((props: RF.EdgeProps<DmnDiagramEdgeDat
         className={`kie-dmn-editor--edge ${className}`}
         diffStrokeColor={diffStyle.strokeColor}
         diffStrokeWidth={diffStyle.strokeWidth}
+        diffStrokeDasharray={diffStyle.strokeDasharray}
       />
 
       {!settings.isReadOnly && props.selected && !isConnecting && props.data?.dmnEdge && (

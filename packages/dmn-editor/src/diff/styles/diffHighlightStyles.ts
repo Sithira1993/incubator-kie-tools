@@ -10,7 +10,7 @@ export const getDiffStyle = (changeType?: DiffChangeType) => {
     case DiffChangeType.ADDED:
       return { strokeColor: DIFF_ADDED_COLOR, strokeWidth: 3 };
     case DiffChangeType.REMOVED:
-      return { strokeColor: DIFF_REMOVED_COLOR, strokeWidth: 3 };
+      return { strokeColor: DIFF_REMOVED_COLOR, strokeWidth: 3, strokeDasharray: "4 4" };
     case DiffChangeType.MODIFIED:
       return { strokeColor: DIFF_MODIFIED_COLOR, strokeWidth: 3 };
     default:

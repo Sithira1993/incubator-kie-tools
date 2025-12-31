@@ -61,6 +61,7 @@ import "@kie-tools/dmn-marshaller/dist/kie-extensions"; // This is here because 
 import "./DmnEditor.css"; // Leave it for last, as this overrides some of the PF and RF styles.
 import { dmnEditorDictionaries, DmnEditorI18nContext, dmnEditorI18nDefaults, useDmnEditorI18n } from "./i18n";
 import { I18nDictionariesProvider } from "@kie-tools-core/i18n/dist/react-components";
+import { useDmnDiffController } from "./diff/hooks/useDmnDiffController";
 
 const ON_MODEL_CHANGE_DEBOUNCE_TIME_IN_MS = 500;
 
@@ -68,6 +69,9 @@ const SVG_PADDING = 20;
 
 export type DmnEditorRef = {
   reset: (mode: DmnLatestModel) => void;
+  openDiff: (baseModelXml: string, changedModelXml: string) => Promise<void>;
+  updateDiff: (changedModelXml: string) => Promise<void>;
+  closeDiff: () => void;
   getDiagramSvg: () => Promise<string | undefined>;
   openBoxedExpressionEditor: (nodeId: string) => void;
   getCommands: () => Commands;
@@ -227,6 +231,7 @@ export const DmnEditorInternal = ({
 
   const { dmnModelBeforeEditingRef, dmnEditorRootElementRef } = useDmnEditor();
   const { externalModelsByNamespace } = useExternalModels();
+  const { openDiff, updateDiff, closeDiff } = useDmnDiffController();
 
   // Code to keep FormDmnOutputs.tsx selected card highlight in proper state
   useEffect(() => {
@@ -249,6 +254,9 @@ export const DmnEditorInternal = ({
         const state = dmnEditorStoreApi.getState();
         return state.dispatch(state).dmn.reset(normalize(model));
       },
+      openDiff,
+      updateDiff,
+      closeDiff,
       openBoxedExpressionEditor: (nodeId: string) => {
         dmnEditorStoreApi.setState((state) => {
           state.navigation.tab = DmnEditorTab.EDITOR;
@@ -299,7 +307,7 @@ export const DmnEditorInternal = ({
       },
       getCommands: () => commandsRef.current,
     }),
-    [dmnEditorStoreApi, externalModelsByNamespace, commandsRef]
+    [dmnEditorStoreApi, externalModelsByNamespace, commandsRef, openDiff, updateDiff, closeDiff]
   );
 
   // Make sure the DMN Editor reacts to props changing.
