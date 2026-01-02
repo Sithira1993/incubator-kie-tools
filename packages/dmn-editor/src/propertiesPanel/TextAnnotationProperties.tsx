@@ -28,13 +28,16 @@ import { useDmnEditorStoreApi } from "../store/StoreContext";
 import { updateTextAnnotation } from "../mutations/renameNode";
 import { useSettings } from "../settings/DmnEditorSettingsContext";
 import { useDmnEditorI18n } from "../i18n";
+import { DiffPropertyField } from "./DiffPropertyField";
 
 export function TextAnnotationProperties({
   textAnnotation,
   index,
+  nodeId,
 }: {
   textAnnotation: Normalized<DMN_LATEST__tTextAnnotation>;
   index: number;
+  nodeId: string;
 }) {
   const { i18n } = useDmnEditorI18n();
   const { setState } = useDmnEditorStoreApi();
@@ -43,60 +46,67 @@ export function TextAnnotationProperties({
   return (
     <>
       <FormGroup label={i18n.propertiesPanel.format}>
-        <TextInput
-          aria-label={"Format"}
-          type={"text"}
-          isDisabled={settings.isReadOnly}
-          value={textAnnotation["@_textFormat"] ?? ""}
-          placeholder={i18n.propertiesPanel.formatPlaceholder}
-          onChange={(_event, newTextFormat) => {
-            setState((state) => {
-              (state.dmn.model.definitions.artifact![index] as Normalized<DMN_LATEST__tTextAnnotation>)[
-                "@_textFormat"
-              ] = newTextFormat;
-            });
-          }}
-        />
+        <DiffPropertyField elementId={nodeId} propertyName="textFormat">
+          <TextInput
+            aria-label={"Format"}
+            type={"text"}
+            isDisabled={settings.isReadOnly}
+            value={textAnnotation["@_textFormat"] ?? ""}
+            placeholder={i18n.propertiesPanel.formatPlaceholder}
+            onChange={(_event, newTextFormat) => {
+              setState((state) => {
+                (state.dmn.model.definitions.artifact![index] as Normalized<DMN_LATEST__tTextAnnotation>)[
+                  "@_textFormat"
+                ] = newTextFormat;
+              });
+            }}
+          />
+        </DiffPropertyField>
       </FormGroup>
 
       <FormGroup label={i18n.propertiesPanel.text}>
-        <TextArea
-          aria-label={"Text"}
-          type={"text"}
-          isDisabled={settings.isReadOnly}
-          value={textAnnotation.text?.__$$text ?? ""}
-          onChange={(_event, newText) => {
-            setState((state) => {
-              updateTextAnnotation({
-                definitions: state.dmn.model.definitions,
-                index,
-                newText,
+        <DiffPropertyField elementId={nodeId} propertyName="text">
+          <TextArea
+            aria-label={"Text"}
+            type={"text"}
+            isDisabled={settings.isReadOnly}
+            value={textAnnotation.text?.__$$text ?? ""}
+            onChange={(_event, newText) => {
+              setState((state) => {
+                updateTextAnnotation({
+                  definitions: state.dmn.model.definitions,
+                  index,
+                  newText,
+                });
               });
-            });
-          }}
-          placeholder={i18n.propertiesPanel.textPlaceholder}
-          style={{ resize: "vertical", minHeight: "40px" }}
-          rows={6}
-        />
+            }}
+            placeholder={i18n.propertiesPanel.textPlaceholder}
+            style={{ resize: "vertical", minHeight: "40px" }}
+            rows={6}
+          />
+        </DiffPropertyField>
       </FormGroup>
 
       <FormGroup label={i18n.propertiesPanel.description}>
-        <TextArea
-          aria-label={"Description"}
-          type={"text"}
-          isDisabled={settings.isReadOnly}
-          value={textAnnotation.description?.__$$text ?? ""}
-          onChange={(_event, newDescription) => {
-            setState((state) => {
-              (state.dmn.model.definitions.artifact![index] as Normalized<DMN_LATEST__tTextAnnotation>).description = {
-                __$$text: newDescription,
-              };
-            });
-          }}
-          placeholder={i18n.propertiesPanel.descriptionPlaceholder}
-          style={{ resize: "vertical", minHeight: "40px" }}
-          rows={2}
-        />
+        <DiffPropertyField elementId={nodeId} propertyName="description">
+          <TextArea
+            aria-label={"Description"}
+            type={"text"}
+            isDisabled={settings.isReadOnly}
+            value={textAnnotation.description?.__$$text ?? ""}
+            onChange={(_event, newDescription) => {
+              setState((state) => {
+                (state.dmn.model.definitions.artifact![index] as Normalized<DMN_LATEST__tTextAnnotation>).description =
+                  {
+                    __$$text: newDescription,
+                  };
+              });
+            }}
+            placeholder={i18n.propertiesPanel.descriptionPlaceholder}
+            style={{ resize: "vertical", minHeight: "40px" }}
+            rows={2}
+          />
+        </DiffPropertyField>
       </FormGroup>
 
       <FormGroup label={i18n.propertiesPanel.id}>

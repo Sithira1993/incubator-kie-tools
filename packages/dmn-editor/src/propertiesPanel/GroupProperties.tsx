@@ -28,8 +28,17 @@ import { useDmnEditorStoreApi } from "../store/StoreContext";
 import { renameGroupNode } from "../mutations/renameNode";
 import { useSettings } from "../settings/DmnEditorSettingsContext";
 import { useDmnEditorI18n } from "../i18n";
+import { DiffPropertyField } from "./DiffPropertyField";
 
-export function GroupProperties({ group, index }: { group: Normalized<DMN_LATEST__tGroup>; index: number }) {
+export function GroupProperties({
+  group,
+  index,
+  nodeId,
+}: {
+  group: Normalized<DMN_LATEST__tGroup>;
+  index: number;
+  nodeId: string;
+}) {
   const { i18n } = useDmnEditorI18n();
   const { setState } = useDmnEditorStoreApi();
   const settings = useSettings();
@@ -37,41 +46,45 @@ export function GroupProperties({ group, index }: { group: Normalized<DMN_LATEST
   return (
     <>
       <FormGroup label={i18n.name}>
-        <TextInput
-          aria-label={"Name"}
-          type={"text"}
-          isDisabled={settings.isReadOnly}
-          onChange={(_event, newName) => {
-            setState((state) => {
-              renameGroupNode({
-                definitions: state.dmn.model.definitions,
-                index,
-                newName,
+        <DiffPropertyField elementId={nodeId} propertyName="name">
+          <TextInput
+            aria-label={"Name"}
+            type={"text"}
+            isDisabled={settings.isReadOnly}
+            onChange={(_event, newName) => {
+              setState((state) => {
+                renameGroupNode({
+                  definitions: state.dmn.model.definitions,
+                  index,
+                  newName,
+                });
               });
-            });
-          }}
-          value={group["@_name"] ?? ""}
-          placeholder={i18n.propertiesPanel.namePlaceholder}
-        />
+            }}
+            value={group["@_name"] ?? ""}
+            placeholder={i18n.propertiesPanel.namePlaceholder}
+          />
+        </DiffPropertyField>
       </FormGroup>
 
       <FormGroup label={i18n.propertiesPanel.description}>
-        <TextArea
-          aria-label={"Description"}
-          type={"text"}
-          isDisabled={settings.isReadOnly}
-          value={group.description?.__$$text ?? ""}
-          onChange={(_event, newDescription) => {
-            setState((state) => {
-              (state.dmn.model.definitions.artifact![index] as Normalized<DMN_LATEST__tGroup>).description = {
-                __$$text: newDescription,
-              };
-            });
-          }}
-          placeholder={i18n.propertiesPanel.descriptionPlaceholder}
-          style={{ resize: "vertical", minHeight: "40px" }}
-          rows={6}
-        />
+        <DiffPropertyField elementId={nodeId} propertyName="description">
+          <TextArea
+            aria-label={"Description"}
+            type={"text"}
+            isDisabled={settings.isReadOnly}
+            value={group.description?.__$$text ?? ""}
+            onChange={(_event, newDescription) => {
+              setState((state) => {
+                (state.dmn.model.definitions.artifact![index] as Normalized<DMN_LATEST__tGroup>).description = {
+                  __$$text: newDescription,
+                };
+              });
+            }}
+            placeholder={i18n.propertiesPanel.descriptionPlaceholder}
+            style={{ resize: "vertical", minHeight: "40px" }}
+            rows={6}
+          />
+        </DiffPropertyField>
       </FormGroup>
 
       <FormGroup label={i18n.propertiesPanel.id}>

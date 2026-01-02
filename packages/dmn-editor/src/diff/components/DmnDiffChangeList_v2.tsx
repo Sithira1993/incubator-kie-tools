@@ -744,14 +744,32 @@ const GenericExpressionDetails: React.FC<{
                       </tr>
                     )}
                     {Object.keys(relDiff.rows.modified).length > 0 && (
-                      <tr className="dmn-diff-change-list-v2__details-row">
-                        <td className="dmn-diff-change-list-v2__details-cell dmn-diff-change-list-v2__details-cell--label">
-                          Modified
-                        </td>
-                        <td className="dmn-diff-change-list-v2__details-cell dmn-diff-change-list-v2__details-cell--value">
-                          <Label color="orange">{Object.keys(relDiff.rows.modified).length} row(s)</Label>
-                        </td>
-                      </tr>
+                      <React.Fragment>
+                        {Object.entries(relDiff.rows.modified).map(([id, rowDiff]) => (
+                          <React.Fragment key={id}>
+                            <tr className="dmn-diff-change-list-v2__details-row">
+                              <td
+                                colSpan={2}
+                                className="dmn-diff-change-list-v2__details-cell"
+                                style={{ fontWeight: 600, paddingTop: "12px" }}
+                              >
+                                <Label color="orange">Modified Row: {id}</Label>
+                              </td>
+                            </tr>
+                            {rowDiff.index && <PropertyChangeDisplay change={rowDiff.index} propertyName="Index" />}
+                            {Object.entries(rowDiff.cells).map(([index, cellDiff]) => (
+                              <tr key={index} className="dmn-diff-change-list-v2__details-row">
+                                <td className="dmn-diff-change-list-v2__details-cell dmn-diff-change-list-v2__details-cell--label">
+                                  Column {parseInt(index) + 1}
+                                </td>
+                                <td className="dmn-diff-change-list-v2__details-cell dmn-diff-change-list-v2__details-cell--value">
+                                  <BoxedExpressionDiffDetails diff={cellDiff} versionA={versionA} versionB={versionB} />
+                                </td>
+                              </tr>
+                            ))}
+                          </React.Fragment>
+                        ))}
+                      </React.Fragment>
                     )}
                   </tbody>
                 </table>

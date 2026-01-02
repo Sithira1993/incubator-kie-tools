@@ -22,6 +22,7 @@ import { DMN_LATEST__tBusinessKnowledgeModel } from "@kie-tools/dmn-marshaller";
 import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
 import { ClipboardCopy } from "@patternfly/react-core/dist/js/components/ClipboardCopy";
 import { FormGroup } from "@patternfly/react-core/dist/js/components/Form";
+import { DiffPropertyField } from "./DiffPropertyField";
 import { DocumentationLinksFormGroup } from "./DocumentationLinksFormGroup";
 import { TypeRefSelector } from "../dataTypes/TypeRefSelector";
 import { useDmnEditorStore, useDmnEditorStoreApi } from "../store/StoreContext";
@@ -39,10 +40,12 @@ export function BkmProperties({
   bkm,
   namespace,
   index,
+  nodeId,
 }: {
   bkm: Normalized<DMN_LATEST__tBusinessKnowledgeModel>;
   namespace: string | undefined;
   index: number;
+  nodeId: string;
 }) {
   const { i18n } = useDmnEditorI18n();
   const { setState } = useDmnEditorStoreApi();
@@ -70,52 +73,58 @@ export function BkmProperties({
     <>
       {refactorConfirmationDialog}
       <FormGroup label={i18n.name}>
-        <InlineFeelNameInput
-          enableAutoFocusing={false}
-          isPlain={false}
-          id={bkm["@_id"]!}
-          name={currentName}
-          isReadOnly={isReadOnly}
-          shouldCommitOnBlur={true}
-          className={"pf-v5-c-form-control"}
-          onRenamed={setNewIdentifierNameCandidate}
-          allUniqueNames={useCallback((s) => s.computed(s).getAllFeelVariableUniqueNames(), [])}
-        />
+        <DiffPropertyField elementId={nodeId} propertyName="name">
+          <InlineFeelNameInput
+            enableAutoFocusing={false}
+            isPlain={false}
+            id={bkm["@_id"]!}
+            name={currentName}
+            isReadOnly={isReadOnly}
+            shouldCommitOnBlur={true}
+            className={"pf-v5-c-form-control"}
+            onRenamed={setNewIdentifierNameCandidate}
+            allUniqueNames={useCallback((s) => s.computed(s).getAllFeelVariableUniqueNames(), [])}
+          />
+        </DiffPropertyField>
       </FormGroup>
 
       <FormGroup label={i18n.propertiesPanel.dataType}>
-        <TypeRefSelector
-          heightRef={dmnEditorRootElementRef}
-          typeRef={resolvedTypeRef}
-          isDisabled={isReadOnly}
-          onChange={(newTypeRef) => {
-            setState((state) => {
-              const drgElement = state.dmn.model.definitions.drgElement![
-                index
-              ] as Normalized<DMN_LATEST__tBusinessKnowledgeModel>;
-              drgElement.variable ??= { "@_id": generateUuid(), "@_name": bkm["@_name"] };
-              drgElement.variable["@_typeRef"] = newTypeRef;
-            });
-          }}
-        />
+        <DiffPropertyField elementId={nodeId} propertyName="typeRef">
+          <TypeRefSelector
+            heightRef={dmnEditorRootElementRef}
+            typeRef={resolvedTypeRef}
+            isDisabled={isReadOnly}
+            onChange={(newTypeRef) => {
+              setState((state) => {
+                const drgElement = state.dmn.model.definitions.drgElement![
+                  index
+                ] as Normalized<DMN_LATEST__tBusinessKnowledgeModel>;
+                drgElement.variable ??= { "@_id": generateUuid(), "@_name": bkm["@_name"] };
+                drgElement.variable["@_typeRef"] = newTypeRef;
+              });
+            }}
+          />
+        </DiffPropertyField>
       </FormGroup>
 
-      <TextField
-        title={i18n.propertiesPanel.description}
-        type={TextFieldType.TEXT_AREA}
-        isReadOnly={isReadOnly}
-        initialValue={bkm.description?.__$$text || ""}
-        onChange={(newDescription) => {
-          setState((state) => {
-            (
-              state.dmn.model.definitions.drgElement![index] as Normalized<DMN_LATEST__tBusinessKnowledgeModel>
-            ).description = {
-              __$$text: newDescription,
-            };
-          });
-        }}
-        placeholder={i18n.propertiesPanel.descriptionPlaceholder}
-      />
+      <DiffPropertyField elementId={nodeId} propertyName="description">
+        <TextField
+          title={i18n.propertiesPanel.description}
+          type={TextFieldType.TEXT_AREA}
+          isReadOnly={isReadOnly}
+          initialValue={bkm.description?.__$$text || ""}
+          onChange={(newDescription) => {
+            setState((state) => {
+              (
+                state.dmn.model.definitions.drgElement![index] as Normalized<DMN_LATEST__tBusinessKnowledgeModel>
+              ).description = {
+                __$$text: newDescription,
+              };
+            });
+          }}
+          placeholder={i18n.propertiesPanel.descriptionPlaceholder}
+        />
+      </DiffPropertyField>
 
       <FormGroup label={i18n.propertiesPanel.id}>
         <ClipboardCopy isReadOnly={true} hoverTip="Copy" clickTip="Copied">

@@ -139,6 +139,7 @@ export function SingleNodeProperties({ nodeId }: { nodeId: string }) {
                         inputData={node.data!.dmnObject as Normalized<DMN_LATEST__tInputData>}
                         namespace={node.data.dmnObjectNamespace}
                         index={node.data.index}
+                        nodeId={nodeId}
                       />
                     );
                   case NODE_TYPES.decision:
@@ -147,6 +148,7 @@ export function SingleNodeProperties({ nodeId }: { nodeId: string }) {
                         decision={node.data!.dmnObject as Normalized<DMN_LATEST__tDecision>}
                         namespace={node.data.dmnObjectNamespace}
                         index={node.data.index}
+                        nodeId={nodeId}
                       />
                     );
                   case NODE_TYPES.bkm:
@@ -155,6 +157,7 @@ export function SingleNodeProperties({ nodeId }: { nodeId: string }) {
                         bkm={node.data!.dmnObject as Normalized<DMN_LATEST__tBusinessKnowledgeModel>}
                         namespace={node.data.dmnObjectNamespace}
                         index={node.data.index}
+                        nodeId={nodeId}
                       />
                     );
                   case NODE_TYPES.decisionService:
@@ -163,6 +166,7 @@ export function SingleNodeProperties({ nodeId }: { nodeId: string }) {
                         decisionService={node.data!.dmnObject as Normalized<DMN_LATEST__tDecisionService>}
                         namespace={node.data.dmnObjectNamespace}
                         index={node.data.index}
+                        nodeId={nodeId}
                       />
                     );
                   case NODE_TYPES.knowledgeSource:
@@ -171,6 +175,7 @@ export function SingleNodeProperties({ nodeId }: { nodeId: string }) {
                         knowledgeSource={node.data!.dmnObject as Normalized<DMN_LATEST__tKnowledgeSource>}
                         namespace={node.data.dmnObjectNamespace}
                         index={node.data.index}
+                        nodeId={nodeId}
                       />
                     );
                   case NODE_TYPES.textAnnotation:
@@ -178,6 +183,7 @@ export function SingleNodeProperties({ nodeId }: { nodeId: string }) {
                       <TextAnnotationProperties
                         textAnnotation={node.data!.dmnObject as Normalized<DMN_LATEST__tTextAnnotation>}
                         index={node.data.index}
+                        nodeId={nodeId}
                       />
                     );
                   case NODE_TYPES.group:
@@ -185,6 +191,7 @@ export function SingleNodeProperties({ nodeId }: { nodeId: string }) {
                       <GroupProperties
                         group={node.data!.dmnObject as Normalized<DMN_LATEST__tGroup>}
                         index={node.data.index}
+                        nodeId={nodeId}
                       />
                     );
                   case NODE_TYPES.unknown:

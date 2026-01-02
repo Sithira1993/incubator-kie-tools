@@ -53,6 +53,14 @@ interface NodeSnapshot {
   position?: NodePosition;
   size?: NodeSize;
   expression?: Normalized<BoxedExpression>;
+  description?: string;
+  typeRef?: string;
+  question?: string;
+  allowedAnswers?: string;
+  locationURI?: string;
+  text?: string;
+  textFormat?: string;
+  sourceType?: string;
 }
 
 interface EdgeSnapshot {
@@ -192,6 +200,14 @@ function buildNodeSnapshots(definitions: DmnDefinitions): Map<string, NodeSnapsh
       position: extractPosition(shape),
       size: extractSize(shape),
       expression: getElementExpression(element),
+      description: getStringAttribute(element, "description") ?? (element as any).description?.__$$text,
+      typeRef: getElementTypeRef(element),
+      question: (element as any).question?.__$$text,
+      allowedAnswers: (element as any).allowedAnswers?.__$$text,
+      locationURI: (element as any)["@_locationURI"],
+      text: (element as any).text?.__$$text,
+      textFormat: (element as any)["@_textFormat"],
+      sourceType: (element as any).type?.__$$text,
     });
   };
 
@@ -470,6 +486,70 @@ function collectNodePropertyChanges(nodeA: NodeSnapshot, nodeB: NodeSnapshot): D
   compareNumericProperty("size.width", nodeA.size?.width, nodeB.size?.width, SIZE_TOLERANCE_PX, changes);
   compareNumericProperty("size.height", nodeA.size?.height, nodeB.size?.height, SIZE_TOLERANCE_PX, changes);
 
+  if ((nodeA.description ?? "") !== (nodeB.description ?? "")) {
+    changes.push({
+      property: "description",
+      previousValue: nodeA.description,
+      currentValue: nodeB.description,
+    });
+  }
+
+  if ((nodeA.typeRef ?? "") !== (nodeB.typeRef ?? "")) {
+    changes.push({
+      property: "typeRef",
+      previousValue: nodeA.typeRef,
+      currentValue: nodeB.typeRef,
+    });
+  }
+
+  if ((nodeA.question ?? "") !== (nodeB.question ?? "")) {
+    changes.push({
+      property: "question",
+      previousValue: nodeA.question,
+      currentValue: nodeB.question,
+    });
+  }
+
+  if ((nodeA.allowedAnswers ?? "") !== (nodeB.allowedAnswers ?? "")) {
+    changes.push({
+      property: "allowedAnswers",
+      previousValue: nodeA.allowedAnswers,
+      currentValue: nodeB.allowedAnswers,
+    });
+  }
+
+  if ((nodeA.locationURI ?? "") !== (nodeB.locationURI ?? "")) {
+    changes.push({
+      property: "locationURI",
+      previousValue: nodeA.locationURI,
+      currentValue: nodeB.locationURI,
+    });
+  }
+
+  if ((nodeA.text ?? "") !== (nodeB.text ?? "")) {
+    changes.push({
+      property: "text",
+      previousValue: nodeA.text,
+      currentValue: nodeB.text,
+    });
+  }
+
+  if ((nodeA.textFormat ?? "") !== (nodeB.textFormat ?? "")) {
+    changes.push({
+      property: "textFormat",
+      previousValue: nodeA.textFormat,
+      currentValue: nodeB.textFormat,
+    });
+  }
+
+  if ((nodeA.sourceType ?? "") !== (nodeB.sourceType ?? "")) {
+    changes.push({
+      property: "sourceType",
+      previousValue: nodeA.sourceType,
+      currentValue: nodeB.sourceType,
+    });
+  }
+
   return changes;
 }
 
@@ -629,4 +709,15 @@ function getArrayProperty<T>(element: unknown, key: string): T[] | undefined {
 
   const value = (element as Record<string, unknown>)[key];
   return toArray(value as T | T[] | undefined);
+}
+
+function getElementTypeRef(element: unknown): string | undefined {
+  if (!element || typeof element !== "object") {
+    return undefined;
+  }
+  const variable = (element as any).variable;
+  if (variable && typeof variable === "object") {
+    return variable["@_typeRef"];
+  }
+  return undefined;
 }
