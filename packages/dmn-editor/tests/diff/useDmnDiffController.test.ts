@@ -132,31 +132,23 @@ describe("useDmnDiffController", () => {
     expect(storeMocks.dispatchResetMock).toHaveBeenCalled();
   });
 
-  it("should handle ghost edge cleanup when closeDiff is called", () => {
+  it("should restore changed model when closeDiff is called", () => {
     const { closeDiff } = useDmnDiffController();
 
-    const mockModel = {
-      definitions: {
-        drgElement: [
-          {
-            "@_id": "node1",
-            informationRequirement: [{ "@_id": "edge1" }, { "@_id": "edge2" }],
-          },
-        ],
-        artifact: [],
-      },
-    };
-
-    const diffsByEdgeId = new Map([["edge2", DiffChangeType.REMOVED]]);
+    const mockChangedModel = { definitions: { "@_id": "original", drgElement: [] } };
 
     storeMocks.setStateMock.mockImplementation((updater: any) => {
       const state = {
-        diff: { deletedNodeIds: new Set(["ghostNode"]) },
+        diff: {
+          changedModel: mockChangedModel,
+          deletedNodeIds: new Set(["ghostNode"]),
+        },
         diagram: {
-          diffsByEdgeId,
+          diffsByNodeId: new Map(),
+          diffsByEdgeId: new Map(),
           overlays: { enableDiffHighlights: true },
         },
-        dmn: { model: mockModel },
+        dmn: { model: { definitions: { "@_id": "dirty" } } },
         dispatch: storeMocks.dispatchMock,
       };
       updater(state);
@@ -164,10 +156,6 @@ describe("useDmnDiffController", () => {
 
     closeDiff();
 
-    expect(storeMocks.dispatchResetMock).toHaveBeenCalled();
-    const cleanedModel = storeMocks.dispatchResetMock.mock.calls[0][0];
-    const node1 = cleanedModel.definitions.drgElement[0];
-    expect(node1.informationRequirement).toHaveLength(1);
-    expect(node1.informationRequirement[0]["@_id"]).toBe("edge1");
+    expect(storeMocks.dispatchResetMock).toHaveBeenCalledWith(mockChangedModel);
   });
 });

@@ -17,16 +17,33 @@
  * under the License.
  */
 
-import { DMN_LATEST__DMNShape, DmnLatestModel } from "@kie-tools/dmn-marshaller";
+import {
+  DMN_LATEST__DMNShape,
+  DmnLatestModel,
+  DMN_LATEST__tInformationRequirement,
+  DMN_LATEST__tKnowledgeRequirement,
+  DMN_LATEST__tAuthorityRequirement,
+  DMN_LATEST__tDecision,
+  DMN_LATEST__tBusinessKnowledgeModel,
+} from "@kie-tools/dmn-marshaller";
 import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
 import { buildXmlHref, parseXmlHref } from "@kie-tools/dmn-marshaller/dist/xml";
 import { parseXmlQName } from "@kie-tools/xml-parser-ts/dist/qNames";
+import { BoxedExpression } from "@kie-tools/boxed-expression-component/dist/api";
+
 import { DiffChangeType, DiffPropertyChange, DiffResult, EdgeDiff, NodeDiff, NodePosition, NodeSize } from "../types";
+import { diffBoxedExpression } from "./diffBoxedExpression";
+
+// Re-export for compatibility
+export { diffBoxedExpression } from "./diffBoxedExpression";
 
 type DmnDefinitions = Normalized<DmnLatestModel>["definitions"];
 type DrgElement = NonNullable<DmnDefinitions["drgElement"]>[number];
 type ArtifactElement = NonNullable<DmnDefinitions["artifact"]>[number];
 type ShapeElement = Normalized<DMN_LATEST__DMNShape>;
+type DMNRequirement = Normalized<
+  DMN_LATEST__tInformationRequirement | DMN_LATEST__tKnowledgeRequirement | DMN_LATEST__tAuthorityRequirement
+>;
 
 interface NodeSnapshot {
   id: string;
@@ -35,6 +52,7 @@ interface NodeSnapshot {
   elementName?: string;
   position?: NodePosition;
   size?: NodeSize;
+  expression?: Normalized<BoxedExpression>;
 }
 
 interface EdgeSnapshot {
@@ -73,6 +91,84 @@ export function computeDmnDiff(modelA: Normalized<DmnLatestModel>, modelB: Norma
   };
 }
 
+type DecisionWithExpressions = Normalized<DMN_LATEST__tDecision> & {
+  expression?: Normalized<BoxedExpression>;
+  literalExpression?: Normalized<BoxedExpression>;
+  decisionTable?: Normalized<BoxedExpression>;
+  relation?: Normalized<BoxedExpression>;
+  list?: Normalized<BoxedExpression>;
+  context?: Normalized<BoxedExpression>;
+  invocation?: Normalized<BoxedExpression>;
+  functionDefinition?: Normalized<BoxedExpression>;
+  conditional?: Normalized<BoxedExpression>;
+  filter?: Normalized<BoxedExpression>;
+  every?: Normalized<BoxedExpression>;
+  some?: Normalized<BoxedExpression>;
+  for?: Normalized<BoxedExpression>;
+};
+
+/**
+ * Retrieves the boxed expression from a DRG element or artifact.
+ *
+ * According to the DMN specification, a Decision element can have exactly ONE expression child element.
+ * The canonical property is `expression`, but for backward compatibility with older DMN versions
+ * and different serialization formats, this function checks legacy property names as fallbacks.
+ *
+ * Priority chain (first non-null value is returned):
+ * 1. `expression` - Canonical/normalized property (DMN 1.2+)
+ * 2. `literalExpression` - Legacy property name
+ * 3. `decisionTable` - Legacy property name
+ * 4. `relation` - Legacy property name
+ * 5. `list` - Legacy property name
+ * 6. `context` - Legacy property name
+ * 7. `invocation` - Legacy property name
+ * 8. `functionDefinition` - Legacy property name
+ * 9. `conditional` - Legacy property name (DMN 1.3+)
+ * 10. `filter` - Legacy property name (DMN 1.3+)
+ * 11. `every` - Legacy property name (DMN 1.3+)
+ * 12. `some` - Legacy property name (DMN 1.3+)
+ * 13. `for` - Legacy property name (DMN 1.3+)
+ *
+ * @param element - The DRG element or artifact to extract the expression from
+ * @returns The boxed expression if found, undefined otherwise
+ */
+function getElementExpression(
+  element: DrgElement | ArtifactElement | null | undefined
+): Normalized<BoxedExpression> | undefined {
+  if (!element) {
+    return undefined;
+  }
+  if (element.__$$element === "decision") {
+    const decision = element as unknown as DecisionWithExpressions;
+    return (
+      decision.expression ??
+      decision.literalExpression ??
+      decision.decisionTable ??
+      decision.relation ??
+      decision.list ??
+      decision.context ??
+      decision.invocation ??
+      decision.functionDefinition ??
+      decision.conditional ??
+      decision.filter ??
+      decision.every ??
+      decision.some ??
+      decision.for
+    );
+  } else if (element.__$$element === "businessKnowledgeModel") {
+    const bkm = element as Normalized<DMN_LATEST__tBusinessKnowledgeModel>;
+    if (bkm.encapsulatedLogic) {
+      return {
+        __$$element: "functionDefinition",
+        ...bkm.encapsulatedLogic,
+      } as Normalized<BoxedExpression>;
+    }
+    return undefined;
+  }
+  // Decision Services, Input Data, Knowledge Sources, and other DRG elements do not support boxed expressions.
+  return undefined;
+}
+
 function buildNodeSnapshots(definitions: DmnDefinitions): Map<string, NodeSnapshot> {
   const nodes = new Map<string, NodeSnapshot>();
   const namespace = definitions["@_namespace"];
@@ -95,6 +191,7 @@ function buildNodeSnapshots(definitions: DmnDefinitions): Map<string, NodeSnapsh
       elementName: getStringAttribute(element, "@_name"),
       position: extractPosition(shape),
       size: extractSize(shape),
+      expression: getElementExpression(element),
     });
   };
 
@@ -161,17 +258,17 @@ function collectRequirementEdges(
 ) {
   const requirementExtractors: Array<{
     kind: string;
-    collection: Array<any> | undefined;
-    resolver: (requirement: any) => { href?: string; referenceKind?: string };
+    collection: Array<DMNRequirement> | undefined;
+    resolver: (requirement: DMNRequirement) => { href?: string; referenceKind?: string };
   }> = [
     {
       kind: "informationRequirement",
       collection: getArrayProperty(element, "informationRequirement"),
-      resolver: (requirement: any) => {
-        if (requirement?.requiredInput?.["@_href"]) {
+      resolver: (requirement: Normalized<DMN_LATEST__tInformationRequirement>) => {
+        if (requirement.requiredInput?.["@_href"]) {
           return { href: requirement.requiredInput["@_href"], referenceKind: "requiredInput" };
         }
-        if (requirement?.requiredDecision?.["@_href"]) {
+        if (requirement.requiredDecision?.["@_href"]) {
           return { href: requirement.requiredDecision["@_href"], referenceKind: "requiredDecision" };
         }
         return {};
@@ -180,22 +277,22 @@ function collectRequirementEdges(
     {
       kind: "knowledgeRequirement",
       collection: getArrayProperty(element, "knowledgeRequirement"),
-      resolver: (requirement: any) => ({
-        href: requirement?.requiredKnowledge?.["@_href"],
+      resolver: (requirement: Normalized<DMN_LATEST__tKnowledgeRequirement>) => ({
+        href: requirement.requiredKnowledge?.["@_href"],
         referenceKind: "requiredKnowledge",
       }),
     },
     {
       kind: "authorityRequirement",
       collection: getArrayProperty(element, "authorityRequirement"),
-      resolver: (requirement: any) => {
-        if (requirement?.requiredDecision?.["@_href"]) {
+      resolver: (requirement: Normalized<DMN_LATEST__tAuthorityRequirement>) => {
+        if (requirement.requiredDecision?.["@_href"]) {
           return { href: requirement.requiredDecision["@_href"], referenceKind: "requiredDecision" };
         }
-        if (requirement?.requiredInput?.["@_href"]) {
+        if (requirement.requiredInput?.["@_href"]) {
           return { href: requirement.requiredInput["@_href"], referenceKind: "requiredInput" };
         }
-        if (requirement?.requiredAuthority?.["@_href"]) {
+        if (requirement.requiredAuthority?.["@_href"]) {
           return { href: requirement.requiredAuthority["@_href"], referenceKind: "requiredAuthority" };
         }
         return {};
@@ -267,7 +364,9 @@ function diffNodes(mapA: Map<string, NodeSnapshot>, mapB: Map<string, NodeSnapsh
 
     if (nodeA && nodeB) {
       const changes = collectNodePropertyChanges(nodeA, nodeB);
-      if (changes.length > 0) {
+      const expressionDiff = diffBoxedExpression(nodeA.expression, nodeB.expression);
+
+      if (changes.length > 0 || expressionDiff) {
         diffs.push({
           kind: "node",
           id,
@@ -277,6 +376,7 @@ function diffNodes(mapA: Map<string, NodeSnapshot>, mapB: Map<string, NodeSnapsh
           changedProperties: changes,
           position: nodeB.position,
           size: nodeB.size,
+          boxedExpressionDiff: expressionDiff,
         });
       }
     }

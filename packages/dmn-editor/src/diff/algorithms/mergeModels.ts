@@ -40,34 +40,40 @@ export function mergeModels(
   changedModel: Normalized<DmnLatestModel>,
   diffResult: DiffResult
 ): Normalized<DmnLatestModel> {
-  // Deep copy changedModel to avoid mutating the original
   const mergedModel = structuredClone(changedModel) as Normalized<DmnLatestModel>;
 
   const baseDefinitions = baseModel.definitions;
   const mergedDefinitions = mergedModel.definitions;
 
-  // 1. Inject Removed Nodes
+  // Index base model elements for faster lookup
+  const baseDrgElements = new Map(baseDefinitions.drgElement?.map((el) => [el["@_id"], el]));
+  const baseArtifacts = new Map(baseDefinitions.artifact?.map((el) => [el["@_id"], el]));
+  const baseShapes = new Map(
+    baseDefinitions["dmndi:DMNDI"]?.["dmndi:DMNDiagram"]?.[0]?.["dmndi:DMNDiagramElement"]?.map((el) => [
+      el["@_dmnElementRef"],
+      el,
+    ])
+  );
+
+  // Inject Removed Nodes
   for (const nodeDiff of diffResult.nodes) {
     if (nodeDiff.changeType === DiffChangeType.REMOVED) {
       const parsed = parseXmlHref(nodeDiff.id);
       const nodeId = parsed.id;
 
-      const baseNode = baseDefinitions.drgElement?.find((el) => el["@_id"] === nodeId);
-      const baseArtifact = baseDefinitions.artifact?.find((el) => el["@_id"] === nodeId);
+      const baseNode = baseDrgElements.get(nodeId);
+      const baseArtifact = baseArtifacts.get(nodeId);
 
       // Inject Node
       if (baseNode) {
         mergedDefinitions.drgElement ??= [];
-        mergedDefinitions.drgElement.push(structuredClone(baseNode)); // Copy to avoid ref issues
+        mergedDefinitions.drgElement.push(structuredClone(baseNode));
       } else if (baseArtifact) {
         mergedDefinitions.artifact ??= [];
         mergedDefinitions.artifact.push(structuredClone(baseArtifact));
       }
 
-      // Inject Shape
-      const baseShape = baseDefinitions["dmndi:DMNDI"]?.["dmndi:DMNDiagram"]?.[0]?.["dmndi:DMNDiagramElement"]?.find(
-        (el) => el["@_dmnElementRef"] === nodeId
-      );
+      const baseShape = baseShapes.get(nodeId);
 
       if (baseShape) {
         injectShape(mergedDefinitions, baseShape as Normalized<DMN_LATEST__DMNShape>);
@@ -75,36 +81,33 @@ export function mergeModels(
     }
   }
 
-  // 1.5. Inject Removed Edges
+  // Inject Removed Edges
   for (const edgeDiff of diffResult.edges) {
     if (edgeDiff.changeType === DiffChangeType.REMOVED) {
       const parsed = parseXmlHref(edgeDiff.id);
       const edgeId = parsed.id;
 
-      // 1.5.1. Associations
-      const baseAssociation = baseDefinitions.artifact?.find((el) => el["@_id"] === edgeId);
+      const baseAssociation = baseArtifacts.get(edgeId);
       if (baseAssociation?.__$$element === "association") {
         mergedDefinitions.artifact ??= [];
         mergedDefinitions.artifact.push(structuredClone(baseAssociation));
       }
 
-      // 1.5.2. Requirements
-      for (const baseDrgElement of baseDefinitions.drgElement ?? []) {
-        const mergedDrgElement = mergedDefinitions.drgElement?.find((el) => el["@_id"] === baseDrgElement["@_id"]);
-        // Should not happen if deleted nodes are injected correctly
-        if (!mergedDrgElement) {
-          continue;
-        }
+      if (edgeDiff.target) {
+        const targetId = parseXmlHref(edgeDiff.target).id;
+        if (targetId) {
+          const baseDrgElement = baseDrgElements.get(targetId);
+          const mergedDrgElement = mergedDefinitions.drgElement?.find((el) => el["@_id"] === targetId);
 
-        injectRequirement(baseDrgElement, mergedDrgElement, "informationRequirement", edgeId);
-        injectRequirement(baseDrgElement, mergedDrgElement, "knowledgeRequirement", edgeId);
-        injectRequirement(baseDrgElement, mergedDrgElement, "authorityRequirement", edgeId);
+          if (baseDrgElement && mergedDrgElement) {
+            injectRequirement(baseDrgElement, mergedDrgElement, "informationRequirement", edgeId);
+            injectRequirement(baseDrgElement, mergedDrgElement, "knowledgeRequirement", edgeId);
+            injectRequirement(baseDrgElement, mergedDrgElement, "authorityRequirement", edgeId);
+          }
+        }
       }
 
-      // 1.5.3. Inject DMNDI Edge
-      const baseEdge = baseDefinitions["dmndi:DMNDI"]?.["dmndi:DMNDiagram"]?.[0]?.["dmndi:DMNDiagramElement"]?.find(
-        (el) => el["@_dmnElementRef"] === edgeId
-      );
+      const baseEdge = baseShapes.get(edgeId);
 
       if (baseEdge) {
         injectShape(mergedDefinitions, baseEdge as Normalized<DMN_LATEST__DMNEdge>);

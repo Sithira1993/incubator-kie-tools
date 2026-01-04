@@ -78,6 +78,7 @@ export interface State {
   diff: {
     isDiffModeEnabled: boolean;
     baseModel: Normalized<DmnLatestModel> | undefined;
+    changedModel: Normalized<DmnLatestModel> | undefined;
     deletedNodeIds: Set<string>;
   };
   focus: {
@@ -257,6 +258,7 @@ export const defaultStaticState = (): Omit<State, "dmn" | "dispatch" | "computed
   diff: {
     isDiffModeEnabled: false,
     baseModel: undefined,
+    changedModel: undefined,
     deletedNodeIds: new Set(),
   },
 });
@@ -272,6 +274,7 @@ export function createDmnEditorStore(model: DmnLatestModel, computedCache: Compu
       diff: {
         isDiffModeEnabled: false,
         baseModel: undefined,
+        changedModel: undefined,
         deletedNodeIds: new Set(),
       },
       diagram: {
