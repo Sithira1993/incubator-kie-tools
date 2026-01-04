@@ -33,6 +33,7 @@ import { usePotentialWaypointControls } from "./usePotentialWaypointControls";
 import { useSettings } from "../../settings/DmnEditorSettingsContext";
 import { useDmnEditorStore } from "../../store/StoreContext";
 import { getDiffStyle } from "../../diff/styles/diffHighlightStyles";
+import { DiffChangeType } from "../../diff/types";
 
 export type DmnDiagramEdgeData = {
   dmnEdge: (Normalized<DMN_LATEST__DMNEdge> & { index: number }) | undefined;
@@ -40,8 +41,6 @@ export type DmnDiagramEdgeData = {
   dmnShapeSource: Normalized<DMN_LATEST__DMNShape> | undefined;
   dmnShapeTarget: Normalized<DMN_LATEST__DMNShape> | undefined;
 };
-
-export type DiffChangeType = "ADDED" | "REMOVED" | "MODIFIED";
 
 export const InformationRequirementPath = React.memo(
   (
