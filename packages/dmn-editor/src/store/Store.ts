@@ -180,7 +180,7 @@ export type Computed = {
 
 export type Dispatch = {
   dmn: {
-    reset: (model: State["dmn"]["model"]) => void;
+    reset: (model?: State["dmn"]["model"]) => void;
   };
   boxedExpressionEditor: {
     open: (id: string) => void;
@@ -291,8 +291,10 @@ export function createDmnEditorStore(model: DmnLatestModel, computedCache: Compu
       dispatch(s: State) {
         return {
           dmn: {
-            reset: (model) => {
-              s.dmn.model = model;
+            reset: (model?) => {
+              if (model !== undefined) {
+                s.dmn.model = model;
+              }
               s.diagram._selectedNodes = [];
               s.diagram.draggingNodes = [];
               s.diagram.resizingNodes = [];
