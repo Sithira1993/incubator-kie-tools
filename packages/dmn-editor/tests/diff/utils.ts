@@ -283,9 +283,7 @@ export function addInputData(
   model.definitions.drgElement?.push({
     __$$element: "inputData",
     "@_id": id,
-    id: id,
     "@_name": name,
-    name: name,
   } as any);
 
   diagramElements(model).push(createShape(id, { x, y, width, height }));
@@ -306,13 +304,10 @@ export function addDecision(
   model.definitions.drgElement?.push({
     __$$element: "decision",
     "@_id": id,
-    id: id,
     "@_name": name,
-    name: name,
     informationRequirement: informationRequirements.map((req) => ({
       __$$element: "informationRequirement",
       "@_id": req.id,
-      id: req.id,
       requiredInput: { "@_href": `#${req.requiredInputId}` },
     })),
   } as any);

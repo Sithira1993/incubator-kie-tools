@@ -36,7 +36,7 @@ export interface UseDecisionTableDiffWidthsParams {
   activeDrgElementId: string | undefined;
   displayExpression: Normalized<BoxedExpression> | undefined;
   currentExpression: Normalized<BoxedExpression> | undefined;
-  diffResult: DiffResult | undefined;
+  diffResult: DiffResult | null;
 }
 
 /**

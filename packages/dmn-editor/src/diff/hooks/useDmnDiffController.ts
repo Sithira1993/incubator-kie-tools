@@ -128,7 +128,7 @@ export function useDmnDiffController() {
       state.diff.baseModel = undefined;
       state.diff.changedModel = undefined;
       state.diff.deletedNodeIds = new Set();
-      state.diff.diffResult = undefined;
+      state.diff.diffResult = null;
       state.diagram.diffsByNodeId = new Map();
       state.diagram.diffsByEdgeId = new Map();
       state.diagram.overlays.enableDiffHighlights = false;

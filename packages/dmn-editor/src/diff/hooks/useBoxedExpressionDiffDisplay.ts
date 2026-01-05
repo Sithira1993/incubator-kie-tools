@@ -30,7 +30,7 @@ export interface UseBoxedExpressionDiffDisplayParams {
   isDiffMode: boolean;
   baseModel: Normalized<DmnLatestModel> | undefined;
   activeDrgElementId: string | undefined;
-  diffResult: DiffResult | undefined;
+  diffResult: DiffResult | null;
 }
 
 /**
