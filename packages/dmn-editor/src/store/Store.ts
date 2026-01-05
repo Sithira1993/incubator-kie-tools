@@ -80,7 +80,7 @@ export interface State {
     baseModel: Normalized<DmnLatestModel> | undefined;
     changedModel: Normalized<DmnLatestModel> | undefined;
     deletedNodeIds: Set<string>;
-    diffResult?: DiffResult | null;
+    diffResult: DiffResult | null;
   };
   focus: {
     consumableId: string | undefined;
@@ -278,7 +278,7 @@ export function createDmnEditorStore(model: DmnLatestModel, computedCache: Compu
         baseModel: undefined,
         changedModel: undefined,
         deletedNodeIds: new Set(),
-        diffResult: undefined,
+        diffResult: null,
       },
       diagram: {
         ...diagram,
