@@ -62,6 +62,8 @@ import "./DmnEditor.css"; // Leave it for last, as this overrides some of the PF
 import { dmnEditorDictionaries, DmnEditorI18nContext, dmnEditorI18nDefaults, useDmnEditorI18n } from "./i18n";
 import { I18nDictionariesProvider } from "@kie-tools-core/i18n/dist/react-components";
 import { useDmnDiffController } from "./diff/hooks/useDmnDiffController";
+import { DiffResult, NodeDiff, EdgeDiff } from "./diff/types";
+import { computeDmnDiff } from "./diff/algorithms/dmnDiffAlgorithm";
 
 const ON_MODEL_CHANGE_DEBOUNCE_TIME_IN_MS = 500;
 
@@ -75,6 +77,17 @@ export type DmnEditorRef = {
   getDiagramSvg: () => Promise<string | undefined>;
   openBoxedExpressionEditor: (nodeId: string) => void;
   getCommands: () => Commands;
+
+  // Query APIs
+  isDiffModeEnabled: () => boolean;
+  getDiffResult: () => DiffResult | null;
+  getChangeById: (changeId: string) => NodeDiff | EdgeDiff | null;
+
+  // Accept/Revert APIs for Diff
+  acceptChange: (changeId: string) => void;
+  revertChange: (changeId: string) => void;
+  acceptAllChanges: () => void;
+  revertAllChanges: () => void;
 };
 
 /**
@@ -306,6 +319,109 @@ export const DmnEditorInternal = ({
         return new XMLSerializer().serializeToString(svg);
       },
       getCommands: () => commandsRef.current,
+
+      /**
+       * Check if diff mode is currently active.
+       * @returns true if diff mode is enabled, false otherwise
+       */
+      isDiffModeEnabled: () => {
+        const state = dmnEditorStoreApi.getState();
+        return state.diff.isDiffModeEnabled;
+      },
+
+      /**
+       * Get the complete list of all changes (nodes, edges, properties).
+       * @returns DiffResult containing all detected changes, or null if diff mode is not active
+       */
+      getDiffResult: () => {
+        const state = dmnEditorStoreApi.getState();
+        if (!state.diff.isDiffModeEnabled || !state.diff.baseModel) {
+          return null;
+        }
+        return computeDmnDiff(state.diff.baseModel, state.dmn.model);
+      },
+
+      /**
+       * Get details of a specific change by ID.
+       * @param changeId - The unique identifier of the change
+       * @returns NodeDiff or EdgeDiff if found, null otherwise
+       */
+      getChangeById: (changeId: string) => {
+        const state = dmnEditorStoreApi.getState();
+        if (!state.diff.isDiffModeEnabled || !state.diff.baseModel) {
+          return null;
+        }
+
+        const diffResult = computeDmnDiff(state.diff.baseModel, state.dmn.model);
+
+        const nodeDiff = diffResult.nodes.find((node) => node.id === changeId);
+        if (nodeDiff) {
+          return nodeDiff;
+        }
+
+        const edgeDiff = diffResult.edges.find((edge) => edge.id === changeId);
+        if (edgeDiff) {
+          return edgeDiff;
+        }
+
+        return null;
+      },
+
+      /**
+       * Accept/apply a specific change.
+       *
+       * STUB IMPLEMENTATION: This method currently only logs to console.
+       * Future implementation will:
+       * - Update the change status to 'accepted'
+       * - Apply the change to the current model
+       * - Re-run the diff algorithm to update the UI
+       *
+       * @param changeId - The unique identifier of the change to accept
+       */
+      acceptChange: (changeId: string) => {
+        console.log(`[DMN Editor API - STUB] acceptChange called with changeId: ${changeId}`);
+      },
+
+      /**
+       * Revert/discard a specific change.
+       *
+       * STUB IMPLEMENTATION: This method currently only logs to console.
+       * Future implementation will:
+       * - Update the change status to 'reverted'
+       * - Revert the change from the current model
+       * - Re-run the diff algorithm to update the UI
+       *
+       * @param changeId - The unique identifier of the change to revert
+       */
+      revertChange: (changeId: string) => {
+        console.log(`[DMN Editor API - STUB] revertChange called with changeId: ${changeId}`);
+      },
+
+      /**
+       * Bulk accept all pending changes.
+       *
+       * STUB IMPLEMENTATION: This method currently only logs to console.
+       * Future implementation will:
+       * - Update all changes' status to 'accepted'
+       * - Apply all changes to the current model
+       * - Re-run the diff algorithm to update the UI
+       */
+      acceptAllChanges: () => {
+        console.log("[DMN Editor API - STUB] acceptAllChanges called");
+      },
+
+      /**
+       * Bulk revert all pending changes.
+       *
+       * STUB IMPLEMENTATION: This method currently only logs to console.
+       * Future implementation will:
+       * - Update all changes' status to 'reverted'
+       * - Revert all changes from the current model
+       * - Re-run the diff algorithm to update the UI
+       */
+      revertAllChanges: () => {
+        console.log("[DMN Editor API - STUB] revertAllChanges called");
+      },
     }),
     [dmnEditorStoreApi, externalModelsByNamespace, commandsRef, openDiff, updateDiff, closeDiff]
   );

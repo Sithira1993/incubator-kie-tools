@@ -79,6 +79,7 @@ export interface NodeDiff extends ElementDiff {
   kind: "node";
   position?: NodePosition;
   size?: NodeSize;
+  status?: "pending" | "accepted" | "reverted";
 }
 
 export interface EdgeDiff extends ElementDiff {
@@ -86,6 +87,7 @@ export interface EdgeDiff extends ElementDiff {
   source?: string;
   target?: string;
   referenceKind?: string;
+  status?: "pending" | "accepted" | "reverted";
 }
 
 export interface DiffResult {
