@@ -338,6 +338,11 @@ export const DmnEditorInternal = ({
         if (!state.diff.isDiffModeEnabled || !state.diff.baseModel) {
           return null;
         }
+
+        if (state.diff.diffResult) {
+          return state.diff.diffResult;
+        }
+
         return computeDmnDiff(state.diff.baseModel, state.dmn.model);
       },
 
