@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { useCallback } from "react";
 import { DmnLatestModel, getMarshaller } from "@kie-tools/dmn-marshaller";
 import { normalize, Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
@@ -47,12 +66,16 @@ export function useDmnDiffController() {
 
       dmnEditorStoreApi.setState((state) => {
         state.diff.deletedNodeIds = deletedNodeIds;
+        state.diff.diffResult = diffResult;
         state.diagram.diffsByNodeId = diffsByNodeId;
         state.diagram.diffsByEdgeId = diffsByEdgeId;
 
         // Ensure styles are active
         state.diagram.overlays.enableDiffHighlights = true;
         state.diagram.overlays.enableCustomNodeStyles = true;
+
+        // Keep the original model state (changed model) to restore it when closing the diff
+        state.diff.changedModel = changedModel;
 
         // Update the merged model
         state.dispatch(state).dmn.reset(mergedModel);
@@ -99,75 +122,22 @@ export function useDmnDiffController() {
 
   const closeDiff = useCallback(() => {
     dmnEditorStoreApi.setState((state) => {
-      const deletedNodeIds = state.diff.deletedNodeIds;
-      const diffsByEdgeId = state.diagram.diffsByEdgeId;
-      const currentModel = state.dmn.model;
+      const changedModel = state.diff.changedModel;
 
       state.diff.isDiffModeEnabled = false;
       state.diff.baseModel = undefined;
+      state.diff.changedModel = undefined;
       state.diff.deletedNodeIds = new Set();
+      state.diff.diffResult = null;
       state.diagram.diffsByNodeId = new Map();
       state.diagram.diffsByEdgeId = new Map();
       state.diagram.overlays.enableDiffHighlights = false;
 
-      // Filter out deleted node IDs to restore the original model state.
-      // This effectively removes the visual highlights and the injected "deleted" nodes.
-      const cleanModel = structuredClone(currentModel);
-
-      const deletedEdgeIds = new Set<string>();
-      if (diffsByEdgeId) {
-        for (const [id, type] of diffsByEdgeId) {
-          if (type === DiffChangeType.REMOVED) {
-            deletedEdgeIds.add(id);
-          }
-        }
+      if (changedModel) {
+        state.dispatch(state).dmn.reset(changedModel);
+      } else {
+        console.error("DMN Editor: Cannot close diff. Changed model state was lost.");
       }
-
-      const isDeleted = (id: string, deletedSet: Set<string>) =>
-        deletedSet.has(id) || deletedSet.has(`#${id}`) || deletedSet.has(id.replace(/^#/, ""));
-
-      if (cleanModel.definitions.drgElement) {
-        cleanModel.definitions.drgElement = cleanModel.definitions.drgElement.filter(
-          (el: any) => !isDeleted(el["@_id"], deletedNodeIds)
-        );
-
-        for (const element of cleanModel.definitions.drgElement) {
-          const el = element as any;
-          if (el.informationRequirement) {
-            el.informationRequirement = el.informationRequirement.filter(
-              (req: any) => !isDeleted(req["@_id"], deletedEdgeIds)
-            );
-          }
-          if (el.knowledgeRequirement) {
-            el.knowledgeRequirement = el.knowledgeRequirement.filter(
-              (req: any) => !isDeleted(req["@_id"], deletedEdgeIds)
-            );
-          }
-          if (el.authorityRequirement) {
-            el.authorityRequirement = el.authorityRequirement.filter(
-              (req: any) => !isDeleted(req["@_id"], deletedEdgeIds)
-            );
-          }
-        }
-      }
-
-      if (cleanModel.definitions.artifact) {
-        cleanModel.definitions.artifact = cleanModel.definitions.artifact.filter(
-          (el: any) => !isDeleted(el["@_id"], deletedNodeIds) && !isDeleted(el["@_id"], deletedEdgeIds)
-        );
-      }
-
-      if (cleanModel.definitions["dmndi:DMNDI"]?.["dmndi:DMNDiagram"]?.[0]?.["dmndi:DMNDiagramElement"]) {
-        cleanModel.definitions["dmndi:DMNDI"]["dmndi:DMNDiagram"][0]["dmndi:DMNDiagramElement"] =
-          cleanModel.definitions["dmndi:DMNDI"]["dmndi:DMNDiagram"][0]["dmndi:DMNDiagramElement"].filter(
-            (el: any) =>
-              !isDeleted(el["@_dmnElementRef"], deletedNodeIds) && !isDeleted(el["@_dmnElementRef"], deletedEdgeIds)
-          );
-      }
-
-      // We do not exhaustively clean up edges here as the removal of nodes
-      // implicitly handles most edge cases in the visualizer.
-      state.dispatch(state).dmn.reset(cleanModel);
     });
   }, [dmnEditorStoreApi]);
 

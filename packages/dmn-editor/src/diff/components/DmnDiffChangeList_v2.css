@@ -1,0 +1,267 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.dmn-diff-change-list-v2 {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 1400px;
+  max-height: 70vh;
+  background-color: var(--pf-v5-global--BackgroundColor--100, #ffffff);
+  border-top: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  border-left: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  border-right: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  border-radius: var(--pf-v5-global--BorderRadius--md, 6px) var(--pf-v5-global--BorderRadius--md, 6px) 0 0;
+  box-shadow: var(--pf-v5-global--BoxShadow--lg, 0 -0.5rem 1rem rgba(0, 0, 0, 0.15));
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateX(-50%) translateY(100%);
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.dmn-diff-change-list-v2__toggle-button {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background-color: var(--pf-v5-global--BackgroundColor--100, #ffffff);
+  border: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  box-shadow: var(--pf-v5-global--BoxShadow--md, 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1));
+  padding: 12px 24px;
+  border-radius: var(--pf-v5-global--BorderRadius--md, 6px);
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+}
+
+.dmn-diff-change-list-v2__toggle-button:hover {
+  background-color: var(--pf-v5-global--BackgroundColor--150, #f5f5f5);
+  color: var(--pf-v5-global--Color--100, #151515);
+  box-shadow: var(--pf-v5-global--BoxShadow--lg, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+}
+
+.dmn-diff-change-list-v2__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  background-color: var(--pf-v5-global--BackgroundColor--200, #f0f0f0);
+  flex-shrink: 0;
+}
+
+.dmn-diff-change-list-v2__header h3 {
+  margin: 0;
+  font-size: var(--pf-v5-global--FontSize--md, 16px);
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+  color: var(--pf-v5-global--Color--100, #151515);
+}
+
+.dmn-diff-change-list-v2__content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 200px;
+  max-height: calc(70vh - 120px);
+}
+
+.dmn-diff-change-list-v2__empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--pf-v5-global--Color--200, #6a6e73);
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
+}
+
+.dmn-diff-change-list-v2__section {
+  margin-bottom: 16px;
+}
+
+.dmn-diff-change-list-v2__section-title {
+  padding: 12px 16px;
+  background-color: var(--pf-v5-global--BackgroundColor--200, #f0f0f0);
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+  font-size: var(--pf-v5-global--FontSize--md, 16px);
+  color: var(--pf-v5-global--Color--100, #151515);
+  border-bottom: 2px solid var(--pf-v5-global--BorderColor--200, #b8bbbe);
+}
+
+.dmn-diff-change-list-v2__table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.dmn-diff-change-list-v2__table-header {
+  padding: 10px 16px;
+  text-align: left;
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
+  color: var(--pf-v5-global--Color--100, #151515);
+  background-color: var(--pf-v5-global--BackgroundColor--150, #f5f5f5);
+  border-bottom: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.dmn-diff-change-list-v2__table-row {
+  border-bottom: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  transition: background-color 0.15s ease;
+}
+
+.dmn-diff-change-list-v2__table-row--expandable {
+  cursor: pointer;
+}
+
+.dmn-diff-change-list-v2__table-row--expandable:hover {
+  background-color: var(--pf-v5-global--BackgroundColor--150, #f5f5f5);
+}
+
+.dmn-diff-change-list-v2__table-row--expanded {
+  background-color: var(--pf-v5-global--BackgroundColor--150, #f5f5f5);
+}
+
+.dmn-diff-change-list-v2__table-cell {
+  padding: 12px 16px;
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
+  color: var(--pf-v5-global--Color--100, #151515);
+  vertical-align: middle;
+}
+
+.dmn-diff-change-list-v2__table-cell--element {
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dmn-diff-change-list-v2__table-cell--type {
+  color: var(--pf-v5-global--Color--200, #6a6e73);
+  text-transform: capitalize;
+}
+
+.dmn-diff-change-list-v2__table-cell--change {
+  min-width: 100px;
+}
+
+.dmn-diff-change-list-v2__expand-icon {
+  margin-right: 8px;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.dmn-diff-change-list-v2__expand-icon--expanded {
+  transform: rotate(90deg);
+}
+
+.dmn-diff-change-list-v2__details {
+  padding: 16px 16px 16px 48px;
+  background-color: var(--pf-v5-global--BackgroundColor--150, #f5f5f5);
+  border-top: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+}
+
+.dmn-diff-change-list-v2__details-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.dmn-diff-change-list-v2__details-row {
+  border-bottom: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+}
+
+.dmn-diff-change-list-v2__details-row:last-child {
+  border-bottom: none;
+}
+
+.dmn-diff-change-list-v2__details-cell {
+  padding: 8px 12px;
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
+  vertical-align: top;
+}
+
+.dmn-diff-change-list-v2__details-cell--label {
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+  color: var(--pf-v5-global--Color--200, #6a6e73);
+  width: 200px;
+}
+
+.dmn-diff-change-list-v2__details-cell--value {
+  color: var(--pf-v5-global--Color--100, #151515);
+  word-break: break-word;
+}
+
+.dmn-diff-change-list-v2__value-change {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dmn-diff-change-list-v2__value-change-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.dmn-diff-change-list-v2__value-change-label {
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+  min-width: 80px;
+  color: var(--pf-v5-global--Color--200, #6a6e73);
+}
+
+.dmn-diff-change-list-v2__value-change-value {
+  font-family: monospace;
+  background-color: var(--pf-v5-global--BackgroundColor--200, #f0f0f0);
+  padding: 2px 6px;
+  border-radius: var(--pf-v5-global--BorderRadius--sm, 3px);
+}
+
+.dmn-diff-change-list-v2__nested-section {
+  margin-top: 12px;
+  padding-left: 16px;
+  border-left: 3px solid var(--pf-v5-global--BorderColor--200, #b8bbbe);
+}
+
+.dmn-diff-change-list-v2__nested-title {
+  font-weight: var(--pf-v5-global--FontWeight--semi-bold, 600);
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
+  color: var(--pf-v5-global--Color--100, #151515);
+  margin-bottom: 8px;
+}
+
+.dmn-diff-change-list-v2__footer {
+  padding: 8px 16px;
+  border-top: 1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2);
+  background-color: var(--pf-v5-global--BackgroundColor--200, #f0f0f0);
+  font-size: var(--pf-v5-global--FontSize--sm, 14px);
+  color: var(--pf-v5-global--Color--200, #6a6e73);
+  text-align: center;
+  flex-shrink: 0;
+}

@@ -25,9 +25,6 @@ export interface DmnUnifiedDiffViewerProps {
   diffResult: DiffResult;
 }
 
-const VIEWPORT_EPSILONS = { x: 0.1, y: 0.1, zoom: 0.001 };
-/* ... helper functions ... */
-
 export const DmnUnifiedDiffViewer = ({ modelA, modelB, diffResult }: DmnUnifiedDiffViewerProps) => {
   const [mergedModel, setMergedModel] = useState<Normalized<DmnLatestModel> | undefined>();
 

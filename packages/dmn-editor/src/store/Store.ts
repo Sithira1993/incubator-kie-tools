@@ -37,7 +37,7 @@ import { computeIsDropTargetNodeValidForSelection } from "./computed/computeIsDr
 import { DEFAULT_VIEWPORT } from "../diagram/Diagram";
 import { computeExternalDmnModelsByNamespaceMap } from "./computed/computeExternalDmnModelsByNamespaceMap";
 import { computeConflictedDecisionServices } from "./computed/computeConflictedDecisionServices";
-import { DiffChangeType } from "../diff/types";
+import { DiffResult, DiffChangeType } from "../diff/types";
 
 enableMapSet(); // Necessary because `Computed` has a lot of Maps and Sets.
 
@@ -78,7 +78,9 @@ export interface State {
   diff: {
     isDiffModeEnabled: boolean;
     baseModel: Normalized<DmnLatestModel> | undefined;
+    changedModel: Normalized<DmnLatestModel> | undefined;
     deletedNodeIds: Set<string>;
+    diffResult: DiffResult | null;
   };
   focus: {
     consumableId: string | undefined;
@@ -178,7 +180,7 @@ export type Computed = {
 
 export type Dispatch = {
   dmn: {
-    reset: (model: State["dmn"]["model"]) => void;
+    reset: (model?: State["dmn"]["model"]) => void;
   };
   boxedExpressionEditor: {
     open: (id: string) => void;
@@ -257,7 +259,9 @@ export const defaultStaticState = (): Omit<State, "dmn" | "dispatch" | "computed
   diff: {
     isDiffModeEnabled: false,
     baseModel: undefined,
+    changedModel: undefined,
     deletedNodeIds: new Set(),
+    diffResult: null,
   },
 });
 
@@ -272,7 +276,9 @@ export function createDmnEditorStore(model: DmnLatestModel, computedCache: Compu
       diff: {
         isDiffModeEnabled: false,
         baseModel: undefined,
+        changedModel: undefined,
         deletedNodeIds: new Set(),
+        diffResult: null,
       },
       diagram: {
         ...diagram,
@@ -286,8 +292,10 @@ export function createDmnEditorStore(model: DmnLatestModel, computedCache: Compu
       dispatch(s: State) {
         return {
           dmn: {
-            reset: (model) => {
-              s.dmn.model = model;
+            reset: (model?) => {
+              if (model !== undefined) {
+                s.dmn.model = model;
+              }
               s.diagram._selectedNodes = [];
               s.diagram.draggingNodes = [];
               s.diagram.resizingNodes = [];
