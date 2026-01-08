@@ -20,6 +20,7 @@
 import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normalize";
 import { BoxedLiteral } from "@kie-tools/boxed-expression-component/dist/api";
 import { BoxedExpressionDiff } from "../types";
+import { getDescriptionText } from "./typeGuards";
 
 /**
  * Compares two Literal Expressions and returns a structured diff of their differences.
@@ -38,15 +39,58 @@ export function diffLiteralExpression(
   const textA = exprA.text?.__$$text;
   const textB = exprB.text?.__$$text;
 
+  const changes: Partial<import("../types").LiteralExpressionDiff> = {};
+  let hasChanges = false;
+
   if (textA !== textB) {
+    changes.text = { property: "text", previousValue: textA, currentValue: textB };
+    hasChanges = true;
+  }
+
+  const labelA = exprA["@_label"];
+  const labelB = exprB["@_label"];
+  if (labelA !== labelB) {
+    changes.label = { property: "label", previousValue: labelA, currentValue: labelB };
+    hasChanges = true;
+  }
+
+  const typeRefA = exprA["@_typeRef"];
+  const typeRefB = exprB["@_typeRef"];
+  if (typeRefA !== typeRefB) {
+    changes.typeRef = { property: "typeRef", previousValue: typeRefA, currentValue: typeRefB };
+    hasChanges = true;
+  }
+
+  const descA = getDescriptionText(exprA);
+  const descB = getDescriptionText(exprB);
+  if (descA !== descB) {
+    changes.description = { property: "description", previousValue: descA, currentValue: descB };
+    hasChanges = true;
+  }
+
+  const langA = exprA["@_expressionLanguage"];
+  const langB = exprB["@_expressionLanguage"];
+  if (langA !== langB) {
+    changes.expressionLanguage = { property: "expressionLanguage", previousValue: langA, currentValue: langB };
+    hasChanges = true;
+  }
+
+  const importedValuesA = exprA.importedValues;
+  const importedValuesB = exprB.importedValues;
+  if (JSON.stringify(importedValuesA) !== JSON.stringify(importedValuesB)) {
+    changes.importedValues = {
+      property: "importedValues",
+      previousValue: importedValuesA,
+      currentValue: importedValuesB,
+    };
+    hasChanges = true;
+  }
+
+  if (hasChanges) {
     return {
       kind: "literalExpression",
-      text: {
-        property: "text",
-        previousValue: textA,
-        currentValue: textB,
-      },
-    };
+      ...changes,
+    } as BoxedExpressionDiff;
   }
   return undefined;
 }

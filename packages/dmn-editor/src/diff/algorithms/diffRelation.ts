@@ -22,6 +22,7 @@ import { DMN_LATEST__tInformationItem, DMN_LATEST__tList } from "@kie-tools/dmn-
 import { BoxedRelation, BoxedExpression } from "@kie-tools/boxed-expression-component/dist/api";
 import { BoxedExpressionDiff, DiffPropertyChange } from "../types";
 import { diffArrayElements } from "./diffUtils";
+import { getDescriptionText } from "./typeGuards";
 
 /**
  * Compares two Relation expressions and returns a structured diff of their differences.
@@ -61,6 +62,29 @@ export function diffRelation(
   const rowsA = relA.row ?? [];
   const rowsB = relB.row ?? [];
 
+  let hasChanges = false;
+
+  // Check expression-level properties
+  let labelChange: DiffPropertyChange | undefined;
+  if (relA["@_label"] !== relB["@_label"]) {
+    labelChange = { property: "label", previousValue: relA["@_label"], currentValue: relB["@_label"] };
+    hasChanges = true;
+  }
+
+  let typeRefChange: DiffPropertyChange | undefined;
+  if (relA["@_typeRef"] !== relB["@_typeRef"]) {
+    typeRefChange = { property: "typeRef", previousValue: relA["@_typeRef"], currentValue: relB["@_typeRef"] };
+    hasChanges = true;
+  }
+
+  const descA = getDescriptionText(relA);
+  const descB = getDescriptionText(relB);
+  let descriptionChange: DiffPropertyChange | undefined;
+  if ((descA ?? "") !== (descB ?? "")) {
+    descriptionChange = { property: "description", previousValue: descA, currentValue: descB };
+    hasChanges = true;
+  }
+
   // Columns
   const {
     added: addedCols,
@@ -79,12 +103,31 @@ export function diffRelation(
       if (colA["@_typeRef"] !== colB["@_typeRef"]) {
         changes.push({ property: "typeRef", previousValue: colA["@_typeRef"], currentValue: colB["@_typeRef"] });
       }
+      const descA = colA.description?.__$$text;
+      const descB = colB.description?.__$$text;
+      if (descA !== descB) {
+        changes.push({ property: "description", previousValue: descA, currentValue: descB });
+      }
       if (changes.length > 0) {
         return changes;
       }
       return undefined;
     }
   );
+
+  if (columnsHaveChanges) hasChanges = true;
+
+  // Create column ID to index mappings
+  const colIdToIndexA = new Map<string, number>(colsA.map((col, i) => [col["@_id"] ?? `__col_${i}`, i]));
+  const colIdToIndexB = new Map<string, number>(colsB.map((col, i) => [col["@_id"] ?? `__col_${i}`, i]));
+
+  // Extract common column IDs (columns that exist in both models)
+  const commonColIds: string[] = [];
+  for (const id of colIdToIndexA.keys()) {
+    if (colIdToIndexB.has(id)) {
+      commonColIds.push(id);
+    }
+  }
 
   // Rows
   const {
@@ -97,7 +140,7 @@ export function diffRelation(
     rowsB as Normalized<DMN_LATEST__tList>[],
     (r) => r["@_id"],
     (rowA, rowB, indexA, indexB) => {
-      const cellDiffs = diffRelationRow(rowA, rowB, diffBoxedExpression);
+      const cellDiffs = diffRelationRow(rowA, rowB, commonColIds, colIdToIndexA, colIdToIndexB, diffBoxedExpression);
 
       let indexChange: DiffPropertyChange | undefined;
       if (indexA !== undefined && indexB !== undefined && indexA !== indexB) {
@@ -111,18 +154,41 @@ export function diffRelation(
     }
   );
 
-  if (!columnsHaveChanges && !rowsHaveChanges) return undefined;
+  if (rowsHaveChanges) hasChanges = true;
+
+  if (!hasChanges) return undefined;
 
   return {
     kind: "relation",
+    label: labelChange,
+    description: descriptionChange,
+    typeRef: typeRefChange,
     columns: { added: addedCols, removed: removedCols, modified: modifiedCols },
     rows: { added: addedRows, removed: removedRows, modified: modifiedRows },
   };
 }
 
+/**
+ * Compares cells in two relation rows by aligning them using column IDs.
+ * Only compares cells for columns that exist in both models (common columns).
+ * This prevents cascading diffs when columns are added or removed.
+ *
+ * Falls back to index-based comparison when no columns are defined (edge case).
+ *
+ * @param rowA - Row from base model
+ * @param rowB - Row from changed model
+ * @param commonColIds - IDs of columns that exist in both models
+ * @param colIdToIndexA - Mapping from column ID to index in base model
+ * @param colIdToIndexB - Mapping from column ID to index in changed model
+ * @param diffBoxedExpression - Function to diff cell expressions
+ * @returns Record mapping cell index (in current model) to diff
+ */
 function diffRelationRow(
   rowA: Normalized<DMN_LATEST__tList>,
   rowB: Normalized<DMN_LATEST__tList>,
+  commonColIds: string[],
+  colIdToIndexA: Map<string, number>,
+  colIdToIndexB: Map<string, number>,
   diffBoxedExpression: (
     a: Normalized<BoxedExpression> | undefined,
     b: Normalized<BoxedExpression> | undefined
@@ -131,13 +197,35 @@ function diffRelationRow(
   const cellDiffs: Record<number, BoxedExpressionDiff> = {};
   const exprsA = (rowA.expression ?? []) as Normalized<BoxedExpression>[];
   const exprsB = (rowB.expression ?? []) as Normalized<BoxedExpression>[];
-  const len = Math.max(exprsA.length, exprsB.length);
 
-  for (let i = 0; i < len; i++) {
-    const diff = diffBoxedExpression(exprsA[i], exprsB[i]);
+  // Edge case: If no columns are defined, fall back to index-based comparison
+  if (commonColIds.length === 0) {
+    const len = Math.max(exprsA.length, exprsB.length);
+    for (let i = 0; i < len; i++) {
+      const diff = diffBoxedExpression(exprsA[i], exprsB[i]);
+      if (diff) {
+        cellDiffs[i] = diff;
+      }
+    }
+    return cellDiffs;
+  }
+
+  // Only compare cells for columns that exist in both models
+  for (const colId of commonColIds) {
+    const indexA = colIdToIndexA.get(colId);
+    const indexB = colIdToIndexB.get(colId);
+
+    // Skip if mapping doesn't exist (shouldn't happen for common IDs, but safety check)
+    if (indexA === undefined || indexB === undefined) {
+      continue;
+    }
+
+    const diff = diffBoxedExpression(exprsA[indexA], exprsB[indexB]);
     if (diff) {
-      cellDiffs[i] = diff;
+      // Report change using indexB (current model index) for overlay rendering
+      cellDiffs[indexB] = diff;
     }
   }
+
   return cellDiffs;
 }

@@ -22,6 +22,7 @@ import { DMN_LATEST__tContextEntry } from "@kie-tools/dmn-marshaller";
 import { BoxedContext, BoxedExpression } from "@kie-tools/boxed-expression-component/dist/api";
 import { BoxedExpressionDiff, DiffPropertyChange } from "../types";
 import { diffArrayElements } from "./diffUtils";
+import { getDescriptionText } from "./typeGuards";
 
 /**
  * Compares two Context expressions and returns a structured diff of their differences.
@@ -68,6 +69,27 @@ export function diffContext(
 
   let hasChanges = false;
 
+  // Check expression-level properties
+  let labelChange: DiffPropertyChange | undefined;
+  if (ctxA["@_label"] !== ctxB["@_label"]) {
+    labelChange = { property: "label", previousValue: ctxA["@_label"], currentValue: ctxB["@_label"] };
+    hasChanges = true;
+  }
+
+  let typeRefChange: DiffPropertyChange | undefined;
+  if (ctxA["@_typeRef"] !== ctxB["@_typeRef"]) {
+    typeRefChange = { property: "typeRef", previousValue: ctxA["@_typeRef"], currentValue: ctxB["@_typeRef"] };
+    hasChanges = true;
+  }
+
+  const descA = getDescriptionText(ctxA);
+  const descB = getDescriptionText(ctxB);
+  let descriptionChange: DiffPropertyChange | undefined;
+  if ((descA ?? "") !== (descB ?? "")) {
+    descriptionChange = { property: "description", previousValue: descA, currentValue: descB };
+    hasChanges = true;
+  }
+
   const {
     added,
     removed,
@@ -94,6 +116,15 @@ export function diffContext(
           property: "typeRef",
           previousValue: varA["@_typeRef"],
           currentValue: varB["@_typeRef"],
+        });
+      }
+      const descA = varA.description?.__$$text;
+      const descB = varB.description?.__$$text;
+      if (descA !== descB) {
+        varChanges.push({
+          property: "description",
+          previousValue: descA,
+          currentValue: descB,
         });
       }
 
@@ -134,6 +165,9 @@ export function diffContext(
 
   return {
     kind: "context",
+    label: labelChange,
+    description: descriptionChange,
+    typeRef: typeRefChange,
     entries: { added, removed, modified },
     result: resultDiff,
   };

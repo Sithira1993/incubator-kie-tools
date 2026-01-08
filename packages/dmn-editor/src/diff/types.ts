@@ -131,7 +131,12 @@ export interface ExpressionReplacementDiff {
 
 export interface LiteralExpressionDiff {
   kind: "literalExpression";
+  label?: DiffPropertyChange; // Added for name changes
   text?: DiffPropertyChange;
+  typeRef?: DiffPropertyChange;
+  description?: DiffPropertyChange;
+  expressionLanguage?: DiffPropertyChange;
+  importedValues?: DiffPropertyChange;
 }
 
 /**
@@ -142,6 +147,7 @@ export interface DecisionTableColumnDiff {
   // Label/Name
   label?: DiffPropertyChange;
   name?: DiffPropertyChange; // For annotation columns
+  index?: DiffPropertyChange; // For column reordering
 
   // Type
   typeRef?: DiffPropertyChange;
@@ -173,6 +179,9 @@ export interface DecisionTableColumnDiff {
 
 export interface DecisionTableDiff {
   kind: "decisionTable";
+  label?: DiffPropertyChange;
+  description?: DiffPropertyChange;
+  outputLabel?: DiffPropertyChange;
   hitPolicy?: DiffPropertyChange;
   aggregation?: DiffPropertyChange;
   input: {
@@ -197,9 +206,9 @@ export interface DecisionTableDiff {
       string,
       {
         index?: DiffPropertyChange; // Index -> change
-        inputEntries: Record<number, DiffPropertyChange>; // Index -> change
-        outputEntries: Record<number, DiffPropertyChange>; // Index -> change
-        annotationEntries: Record<number, DiffPropertyChange>; // Index -> change
+        inputEntries: Record<number, DiffPropertyChange[]>; // Index -> changes
+        outputEntries: Record<number, DiffPropertyChange[]>; // Index -> changes
+        annotationEntries: Record<number, DiffPropertyChange[]>; // Index -> changes
       }
     >;
   };
@@ -207,6 +216,9 @@ export interface DecisionTableDiff {
 
 export interface ContextDiff {
   kind: "context";
+  label?: DiffPropertyChange;
+  description?: DiffPropertyChange;
+  typeRef?: DiffPropertyChange;
   entries: {
     added: string[]; // IDs of added entries. Retrieve full details from the changed model.
     removed: string[]; // IDs of removed entries. Retrieve full details from the base model.
@@ -224,16 +236,23 @@ export interface ContextDiff {
 
 export interface FunctionDefinitionDiff {
   kind: "functionDefinition";
+  label?: DiffPropertyChange;
+  description?: DiffPropertyChange;
+  typeRef?: DiffPropertyChange;
   parameters: {
     added: string[]; // IDs of added parameters. Retrieve full details from the changed model.
     removed: string[]; // IDs of removed parameters. Retrieve full details from the base model.
     modified: Record<string, { diffs: DiffPropertyChange[]; index?: DiffPropertyChange }>; // ID -> changes (including index)
   };
+  kindProperty?: DiffPropertyChange; // For function kind (FEEL, Java, PMML)
   expression?: BoxedExpressionDiff;
 }
 
 export interface ListDiff {
   kind: "list";
+  label?: DiffPropertyChange;
+  description?: DiffPropertyChange;
+  typeRef?: DiffPropertyChange;
   items: {
     added: number[]; // Indexes of added items. Retrieve full details from the changed model.
     removed: number[]; // Indexes of removed items. Retrieve full details from the base model.
@@ -243,21 +262,29 @@ export interface ListDiff {
 
 export interface InvocationDiff {
   kind: "invocation";
+  label?: DiffPropertyChange;
+  description?: DiffPropertyChange;
+  typeRef?: DiffPropertyChange;
   bindings: {
     added: string[]; // IDs of added bindings. Retrieve full details from the changed model.
     removed: string[]; // IDs of removed bindings. Retrieve full details from the base model.
     modified: Record<
       string,
       {
+        parameter?: DiffPropertyChange[]; // Changes to the binding parameter itself (name, typeRef)
         expression?: BoxedExpressionDiff;
         index?: DiffPropertyChange;
       }
     >;
   };
+  expression?: BoxedExpressionDiff;
 }
 
 export interface RelationDiff {
   kind: "relation";
+  label?: DiffPropertyChange;
+  description?: DiffPropertyChange;
+  typeRef?: DiffPropertyChange;
   columns: {
     added: string[]; // IDs of added columns. Retrieve full details from the changed model.
     removed: string[]; // IDs of removed columns. Retrieve full details from the base model.
@@ -272,6 +299,9 @@ export interface RelationDiff {
 
 export interface ConditionalDiff {
   kind: "conditional";
+  label?: DiffPropertyChange;
+  description?: DiffPropertyChange;
+  typeRef?: DiffPropertyChange;
   if?: BoxedExpressionDiff;
   then?: BoxedExpressionDiff;
   else?: BoxedExpressionDiff;
@@ -279,24 +309,39 @@ export interface ConditionalDiff {
 
 export interface FilterDiff {
   kind: "filter";
+  label?: DiffPropertyChange;
+  description?: DiffPropertyChange;
+  typeRef?: DiffPropertyChange;
   in?: BoxedExpressionDiff;
   match?: BoxedExpressionDiff;
 }
 
 export interface EveryDiff {
   kind: "every";
+  label?: DiffPropertyChange;
+  description?: DiffPropertyChange;
+  typeRef?: DiffPropertyChange;
   in?: BoxedExpressionDiff;
   satisfies?: BoxedExpressionDiff;
+  iteratorVariable?: DiffPropertyChange;
 }
 
 export interface SomeDiff {
   kind: "some";
+  label?: DiffPropertyChange;
+  description?: DiffPropertyChange;
+  typeRef?: DiffPropertyChange;
   in?: BoxedExpressionDiff;
   satisfies?: BoxedExpressionDiff;
+  iteratorVariable?: DiffPropertyChange;
 }
 
 export interface ForDiff {
   kind: "for";
+  label?: DiffPropertyChange;
+  description?: DiffPropertyChange;
+  typeRef?: DiffPropertyChange;
   in?: BoxedExpressionDiff;
   return?: BoxedExpressionDiff;
+  iteratorVariable?: DiffPropertyChange;
 }
