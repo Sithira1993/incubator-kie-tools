@@ -20,7 +20,7 @@
 import * as React from "react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useDmnDiffStore } from "./store/DmnDiffStore";
-import { DmnDiffFileVersion } from "./types";
+import { DmnDiffFileVersion, DiffResult } from "./types";
 import { FileUploadArea } from "./components/DmnDiffUploader";
 import { DmnDiffChangeList_v2 } from "./components/DmnDiffChangeList_v2";
 import { DmnEditor, DmnEditorRef } from "../DmnEditor";
@@ -32,10 +32,10 @@ export const UnifiedDiffEditorView: React.FC = () => {
   const versionA = useDmnDiffStore((state) => state.versionA);
   const versionB = useDmnDiffStore((state) => state.versionB);
   const isReadyForComparison = useDmnDiffStore((state) => state.isReadyForComparison());
-  const diffResult = useDmnDiffStore((state) => state.diffResult);
 
   const [editorRef, setEditorRef] = useState<DmnEditorRef | null>(null);
   const [isDiffListOpen, setIsDiffListOpen] = useState(false);
+  const [diffResult, setDiffResult] = useState<DiffResult | null>(null);
 
   const model = useMemo(() => {
     if (isReadyForComparison && versionA?.content && versionB?.content) {
@@ -47,7 +47,9 @@ export const UnifiedDiffEditorView: React.FC = () => {
 
   useEffect(() => {
     if (model && editorRef && versionA?.content && versionB?.content) {
-      editorRef.openDiff(versionA.content, versionB.content);
+      editorRef.openDiff(versionA.content, versionB.content).then(() => {
+        setDiffResult(editorRef.getDiffResult());
+      });
     }
   }, [model, editorRef, versionA?.content, versionB?.content]);
 
