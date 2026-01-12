@@ -17,9 +17,18 @@
  * under the License.
  */
 
-export * from "./DmnDiffUploader";
-export * from "./DmnDiffViewer";
-export * from "./DmnDiffChangeList";
-export * from "./DmnDiffChangeList_v2";
-export * from "./BoxedExpressionDiffOverlay";
-export * from "./DecisionTableDiffOverlay";
+/**
+ * Type guard to check if an expression has a description property.
+ */
+export function hasDescription(expr: unknown): expr is { description?: { __$$text: string } } {
+  return typeof expr === "object" && expr !== null && "description" in expr;
+}
+
+/**
+ * Safely extracts the description text from an expression.
+ * @param expr - The expression to extract description from
+ * @returns The description text or undefined if not present
+ */
+export function getDescriptionText(expr: unknown): string | undefined {
+  return hasDescription(expr) ? expr.description?.__$$text : undefined;
+}

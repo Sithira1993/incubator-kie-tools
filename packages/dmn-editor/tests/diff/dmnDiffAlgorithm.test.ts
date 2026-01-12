@@ -162,4 +162,53 @@ describe("DMN diff algorithm", () => {
       ])
     );
   });
+
+  it("detects modified properties (description, typeRef, question, allowedAnswers)", () => {
+    const source = createEmptyModel();
+    const target = createEmptyModel();
+
+    addDecision(source, {
+      id: "Decision_1",
+      name: "Risk",
+    });
+
+    (source.definitions.drgElement![0] as any).description = { __$$text: "Initial Description" };
+    (source.definitions.drgElement![0] as any).variable = { "@_typeRef": "string" };
+    (source.definitions.drgElement![0] as any).question = { __$$text: "Initial Question" };
+    (source.definitions.drgElement![0] as any).allowedAnswers = { __$$text: "Initial Answers" };
+
+    addDecision(target, {
+      id: "Decision_1",
+      name: "Risk",
+    });
+
+    (target.definitions.drgElement![0] as any).description = { __$$text: "Changed Description" };
+    (target.definitions.drgElement![0] as any).variable = { "@_typeRef": "number" };
+    (target.definitions.drgElement![0] as any).question = { __$$text: "Changed Question" };
+    (target.definitions.drgElement![0] as any).allowedAnswers = { __$$text: "Changed Answers" };
+
+    const diff = computeDmnDiff(source, target);
+    expect(diff.nodes).toHaveLength(1);
+    expect(diff.nodes[0].changeType).toBe(DiffChangeType.MODIFIED);
+    expect(diff.nodes[0].changedProperties).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          property: "description",
+          previousValue: "Initial Description",
+          currentValue: "Changed Description",
+        }),
+        expect.objectContaining({ property: "typeRef", previousValue: "string", currentValue: "number" }),
+        expect.objectContaining({
+          property: "question",
+          previousValue: "Initial Question",
+          currentValue: "Changed Question",
+        }),
+        expect.objectContaining({
+          property: "allowedAnswers",
+          previousValue: "Initial Answers",
+          currentValue: "Changed Answers",
+        }),
+      ])
+    );
+  });
 });

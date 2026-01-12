@@ -26,6 +26,7 @@ import { TextArea } from "@patternfly/react-core/dist/js/components/TextArea";
 import { TextInput } from "@patternfly/react-core/dist/js/components/TextInput";
 import { DocumentationLinksFormGroup } from "./DocumentationLinksFormGroup";
 import { useDmnEditorStore, useDmnEditorStoreApi } from "../store/StoreContext";
+import { DiffPropertyField } from "./DiffPropertyField";
 
 import { InlineFeelNameInput } from "../feel/InlineFeelNameInput";
 import { useCallback, useMemo } from "react";
@@ -37,10 +38,12 @@ export function KnowledgeSourceProperties({
   knowledgeSource,
   namespace,
   index,
+  nodeId,
 }: {
   knowledgeSource: Normalized<DMN_LATEST__tKnowledgeSource>;
   namespace: string | undefined;
   index: number;
+  nodeId: string;
 }) {
   const { i18n } = useDmnEditorI18n();
   const { setState } = useDmnEditorStoreApi();
@@ -65,37 +68,42 @@ export function KnowledgeSourceProperties({
     <>
       {refactorConfirmationDialog}
       <FormGroup label={i18n.name}>
-        <InlineFeelNameInput
-          enableAutoFocusing={false}
-          isPlain={false}
-          id={knowledgeSource["@_id"]!}
-          name={currentName}
-          isReadOnly={isReadOnly}
-          shouldCommitOnBlur={true}
-          className={"pf-v5-c-form-control"}
-          onRenamed={setNewIdentifierNameCandidate}
-          allUniqueNames={useCallback((s) => s.computed(s).getAllFeelVariableUniqueNames(), [])}
-        />
+        <DiffPropertyField elementId={nodeId} propertyName="name">
+          <InlineFeelNameInput
+            enableAutoFocusing={false}
+            isPlain={false}
+            id={knowledgeSource["@_id"]!}
+            name={currentName}
+            isReadOnly={isReadOnly}
+            shouldCommitOnBlur={true}
+            className={"pf-v5-c-form-control"}
+            onRenamed={setNewIdentifierNameCandidate}
+            allUniqueNames={useCallback((s) => s.computed(s).getAllFeelVariableUniqueNames(), [])}
+          />
+        </DiffPropertyField>
       </FormGroup>
 
       <FormGroup label={i18n.propertiesPanel.description}>
-        <TextArea
-          aria-label={"Description"}
-          type={"text"}
-          isDisabled={isReadOnly}
-          value={knowledgeSource.description?.__$$text ?? ""}
-          onChange={(_event, newDescription) => {
-            setState((state) => {
-              (state.dmn.model.definitions.drgElement![index] as Normalized<DMN_LATEST__tKnowledgeSource>).description =
-                {
+        <DiffPropertyField elementId={nodeId} propertyName="description">
+          <TextArea
+            aria-label={"Description"}
+            type={"text"}
+            isDisabled={isReadOnly}
+            value={knowledgeSource.description?.__$$text ?? ""}
+            onChange={(_event, newDescription) => {
+              setState((state) => {
+                (
+                  state.dmn.model.definitions.drgElement![index] as Normalized<DMN_LATEST__tKnowledgeSource>
+                ).description = {
                   __$$text: newDescription,
                 };
-            });
-          }}
-          placeholder={i18n.propertiesPanel.descriptionPlaceholder}
-          style={{ resize: "vertical", minHeight: "40px" }}
-          rows={6}
-        />
+              });
+            }}
+            placeholder={i18n.propertiesPanel.descriptionPlaceholder}
+            style={{ resize: "vertical", minHeight: "40px" }}
+            rows={6}
+          />
+        </DiffPropertyField>
       </FormGroup>
 
       <FormGroup label={i18n.propertiesPanel.id}>
@@ -105,37 +113,41 @@ export function KnowledgeSourceProperties({
       </FormGroup>
 
       <FormGroup label={i18n.propertiesPanel.sourceType}>
-        <TextInput
-          aria-label={"Source type"}
-          type={"text"}
-          isDisabled={isReadOnly}
-          value={knowledgeSource.type?.__$$text ?? ""}
-          onChange={(_event, newType) => {
-            setState((state) => {
-              (state.dmn.model.definitions.drgElement![index] as Normalized<DMN_LATEST__tKnowledgeSource>).type = {
-                __$$text: newType,
-              };
-            });
-          }}
-          placeholder={i18n.propertiesPanel.sourceTypePlaceHolder}
-        />
+        <DiffPropertyField elementId={nodeId} propertyName="sourceType">
+          <TextInput
+            aria-label={"Source type"}
+            type={"text"}
+            isDisabled={isReadOnly}
+            value={knowledgeSource.type?.__$$text ?? ""}
+            onChange={(_event, newType) => {
+              setState((state) => {
+                (state.dmn.model.definitions.drgElement![index] as Normalized<DMN_LATEST__tKnowledgeSource>).type = {
+                  __$$text: newType,
+                };
+              });
+            }}
+            placeholder={i18n.propertiesPanel.sourceTypePlaceHolder}
+          />
+        </DiffPropertyField>
       </FormGroup>
 
       <FormGroup label="">
-        <TextInput
-          aria-label={i18n.propertiesPanel.locationUri}
-          type={"text"}
-          isDisabled={isReadOnly}
-          value={knowledgeSource["@_locationURI"] ?? ""}
-          onChange={(_event, newLocationUri) => {
-            setState((state) => {
-              (state.dmn.model.definitions.drgElement![index] as Normalized<DMN_LATEST__tKnowledgeSource>)[
-                "@_locationURI"
-              ] = newLocationUri;
-            });
-          }}
-          placeholder={i18n.propertiesPanel.locationUriPlaceholder}
-        />
+        <DiffPropertyField elementId={nodeId} propertyName="locationURI">
+          <TextInput
+            aria-label={i18n.propertiesPanel.locationUri}
+            type={"text"}
+            isDisabled={isReadOnly}
+            value={knowledgeSource["@_locationURI"] ?? ""}
+            onChange={(_event, newLocationUri) => {
+              setState((state) => {
+                (state.dmn.model.definitions.drgElement![index] as Normalized<DMN_LATEST__tKnowledgeSource>)[
+                  "@_locationURI"
+                ] = newLocationUri;
+              });
+            }}
+            placeholder={i18n.propertiesPanel.locationUriPlaceholder}
+          />
+        </DiffPropertyField>
       </FormGroup>
 
       <DocumentationLinksFormGroup

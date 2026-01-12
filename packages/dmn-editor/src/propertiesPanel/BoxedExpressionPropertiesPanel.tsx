@@ -50,7 +50,7 @@ import {
 } from "./BoxedExpressionPropertiesPanelComponents/getBoxedExpressionPropertiesPanelComponent";
 import { useDmnEditorStore, useDmnEditorStoreApi } from "../store/StoreContext";
 import { useExternalModels } from "../includedModels/DmnEditorDependenciesContext";
-import { drgElementToBoxedExpression } from "../boxedExpressions/BoxedExpressionScreen";
+import { drgElementToBoxedExpression } from "../boxedExpressions/drgElementToBoxedExpression";
 import { IteratorVariableCell } from "./BoxedExpressionPropertiesPanelComponents/IteratorVariableCell";
 import { useSettings } from "../settings/DmnEditorSettingsContext";
 import { getOperatingSystem, OperatingSystem } from "@kie-tools-core/operating-system";

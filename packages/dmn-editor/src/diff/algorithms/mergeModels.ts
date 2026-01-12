@@ -137,10 +137,12 @@ function injectRequirement<K extends keyof WithRequirements>(
         mergedElementTyped[reqProp] = [] as WithRequirements[K];
       }
 
-      const exists = (mergedElementTyped[reqProp] as any[]).some((req) => req["@_id"] === edgeId);
+      const exists =
+        Array.isArray(mergedElementTyped[reqProp]) &&
+        (mergedElementTyped[reqProp] as Array<{ "@_id"?: string }>).some((req) => req["@_id"] === edgeId);
       if (!exists) {
-        // Cast to any because K is a union and TS can't verify exact match between source and destination arrays
-        mergedElementTyped[reqProp]!.push(structuredClone(reqToInject) as any);
+        // Use explicit type assertion for union type compatibility
+        (mergedElementTyped[reqProp] as (typeof reqToInject)[]).push(structuredClone(reqToInject));
       }
     }
   }

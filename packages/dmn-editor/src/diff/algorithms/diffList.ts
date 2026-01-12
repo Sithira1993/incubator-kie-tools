@@ -21,6 +21,7 @@ import { Normalized } from "@kie-tools/dmn-marshaller/dist/normalization/normali
 import { BoxedList, BoxedExpression } from "@kie-tools/boxed-expression-component/dist/api";
 import { BoxedExpressionDiff, DiffPropertyChange } from "../types";
 import { indexElementsById } from "./diffUtils";
+import { getDescriptionText } from "./typeGuards";
 
 /**
  * Compares two List expressions and returns a structured diff of their differences.
@@ -60,6 +61,27 @@ export function diffList(
   const removed: number[] = [];
   const modified: Record<number, { diff?: BoxedExpressionDiff; index?: DiffPropertyChange }> = {};
   let hasChanges = false;
+
+  // Check expression-level properties
+  let labelChange: DiffPropertyChange | undefined;
+  if (listA["@_label"] !== listB["@_label"]) {
+    labelChange = { property: "label", previousValue: listA["@_label"], currentValue: listB["@_label"] };
+    hasChanges = true;
+  }
+
+  let typeRefChange: DiffPropertyChange | undefined;
+  if (listA["@_typeRef"] !== listB["@_typeRef"]) {
+    typeRefChange = { property: "typeRef", previousValue: listA["@_typeRef"], currentValue: listB["@_typeRef"] };
+    hasChanges = true;
+  }
+
+  const descA = getDescriptionText(listA);
+  const descB = getDescriptionText(listB);
+  let descriptionChange: DiffPropertyChange | undefined;
+  if ((descA ?? "") !== (descB ?? "")) {
+    descriptionChange = { property: "description", previousValue: descA, currentValue: descB };
+    hasChanges = true;
+  }
 
   // Optimization: Try to match by ID first if available
   const { map: mapA, allHaveIds: allHaveIdsA } = indexElementsById(
@@ -131,6 +153,9 @@ export function diffList(
 
   return {
     kind: "list",
+    label: labelChange,
+    description: descriptionChange,
+    typeRef: typeRefChange,
     items: { added, removed, modified },
   };
 }

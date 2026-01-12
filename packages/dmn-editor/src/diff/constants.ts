@@ -37,3 +37,41 @@ export const VALIDATION_ERROR_MESSAGES = {
   INVALID_DMN: "File is not a valid DMN model",
   PARSING_ERROR: "Failed to parse DMN file",
 } as const;
+
+/**
+ * Decision Table Diff Constants
+ */
+
+/**
+ * Default width for the row number column in Decision Tables.
+ * Used when no width is specified in the model.
+ */
+export const DEFAULT_ROW_NUMBER_WIDTH = 50;
+
+/**
+ * Default width for data columns (input/output/annotation) in Decision Tables.
+ * Used when no width is specified in the model.
+ */
+export const DEFAULT_COLUMN_WIDTH = 150;
+
+/**
+ * Minimum length for UUID-based class names (heuristic: >10 chars, starts with '_').
+ * Update this if BoxedExpressionComponent naming changes.
+ */
+export const MIN_UUID_CLASS_LENGTH = 10;
+
+/**
+ * Throttle interval (ms) for mousemove events (~60fps).
+ */
+export const MOUSEMOVE_THROTTLE_MS = 16;
+
+/**
+ * Default cell value for removed input columns when original value is unavailable.
+ * The dash "-" indicates "any value" in DMN FEEL syntax.
+ */
+export const DEFAULT_REMOVED_INPUT_CELL_VALUE = "-";
+
+/**
+ * Default cell value for removed output/annotation columns when original value is unavailable.
+ */
+export const DEFAULT_REMOVED_OUTPUT_CELL_VALUE = "";

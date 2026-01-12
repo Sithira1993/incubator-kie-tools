@@ -22,6 +22,7 @@ import { DMN_LATEST__tBinding } from "@kie-tools/dmn-marshaller";
 import { BoxedInvocation, BoxedExpression } from "@kie-tools/boxed-expression-component/dist/api";
 import { BoxedExpressionDiff, DiffPropertyChange } from "../types";
 import { diffArrayElements } from "./diffUtils";
+import { getDescriptionText } from "./typeGuards";
 
 /**
  * Compares two Invocation expressions and returns a structured diff of their differences.
@@ -29,6 +30,7 @@ import { diffArrayElements } from "./diffUtils";
  * Invocation expressions represent function calls with parameter bindings. This function compares:
  * - Parameter bindings: the expressions bound to each parameter
  * - Binding additions and removals
+ * - Parameter reordering (when IDs are available)
  *
  * @param invA - The base Invocation to compare
  * @param invB - The changed Invocation to compare
@@ -40,7 +42,7 @@ import { diffArrayElements } from "./diffUtils";
  * - Uses parameter IDs for matching when available, falls back to index-based matching otherwise
  * - Detects binding additions, removals, and modifications
  * - Recursively diffs the expression associated with each binding
- * - Does not track parameter reordering (invocations typically maintain parameter order)
+ * - Tracks parameter reordering via index changes
  */
 export function diffInvocation(
   invA: Normalized<BoxedInvocation>,
@@ -55,6 +57,29 @@ export function diffInvocation(
   }
   const bindingsA = (invA.binding ?? []) as Normalized<DMN_LATEST__tBinding>[];
   const bindingsB = (invB.binding ?? []) as Normalized<DMN_LATEST__tBinding>[];
+
+  let hasChanges = false;
+
+  // Check expression-level properties
+  let labelChange: DiffPropertyChange | undefined;
+  if (invA["@_label"] !== invB["@_label"]) {
+    labelChange = { property: "label", previousValue: invA["@_label"], currentValue: invB["@_label"] };
+    hasChanges = true;
+  }
+
+  let typeRefChange: DiffPropertyChange | undefined;
+  if (invA["@_typeRef"] !== invB["@_typeRef"]) {
+    typeRefChange = { property: "typeRef", previousValue: invA["@_typeRef"], currentValue: invB["@_typeRef"] };
+    hasChanges = true;
+  }
+
+  const descA = getDescriptionText(invA);
+  const descB = getDescriptionText(invB);
+  let descriptionChange: DiffPropertyChange | undefined;
+  if ((descA ?? "") !== (descB ?? "")) {
+    descriptionChange = { property: "description", previousValue: descA, currentValue: descB };
+    hasChanges = true;
+  }
 
   const {
     added,
@@ -71,6 +96,23 @@ export function diffInvocation(
         (bindingB.expression as Normalized<BoxedExpression>) || undefined
       );
 
+      const paramA = bindingA.parameter;
+      const paramB = bindingB.parameter;
+      const paramChanges: import("../types").DiffPropertyChange[] = [];
+
+      if (paramA && paramB) {
+        if (paramA["@_name"] !== paramB["@_name"]) {
+          paramChanges.push({ property: "name", previousValue: paramA["@_name"], currentValue: paramB["@_name"] });
+        }
+        if (paramA["@_typeRef"] !== paramB["@_typeRef"]) {
+          paramChanges.push({
+            property: "typeRef",
+            previousValue: paramA["@_typeRef"],
+            currentValue: paramB["@_typeRef"],
+          });
+        }
+      }
+
       let indexChange: DiffPropertyChange | undefined;
       if (indexA !== undefined && indexB !== undefined && indexA !== indexB) {
         indexChange = {
@@ -80,17 +122,32 @@ export function diffInvocation(
         };
       }
 
-      if (exprDiff || indexChange) {
-        return { expression: exprDiff, index: indexChange };
+      if (exprDiff || indexChange || paramChanges.length > 0) {
+        return {
+          expression: exprDiff,
+          index: indexChange,
+          parameter: paramChanges.length > 0 ? paramChanges : undefined,
+        };
       }
       return undefined;
     }
   );
 
-  if (!bindingsHaveChanges) return undefined;
+  const expressionDiff = diffBoxedExpression(
+    (invA.expression as Normalized<BoxedExpression>) || undefined,
+    (invB.expression as Normalized<BoxedExpression>) || undefined
+  );
+
+  if (bindingsHaveChanges || expressionDiff) hasChanges = true;
+
+  if (!hasChanges) return undefined;
 
   return {
     kind: "invocation",
+    label: labelChange,
+    description: descriptionChange,
+    typeRef: typeRefChange,
     bindings: { added, removed, modified },
+    expression: expressionDiff,
   };
 }
